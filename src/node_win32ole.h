@@ -12,8 +12,8 @@ namespace node_win32ole {
 
 #define CHECK_OCV(ocv) do{ \
     if(!(ocv)) \
-      NanThrowError(Exception::TypeError(NanNew( \
-        __FUNCTION__" can't access to V8Variant (null OCVariant)"))); \
+      Nan::ThrowError(Exception::TypeError(Nan::New( \
+        __FUNCTION__" can't access to V8Variant (null OCVariant)").ToLocalChecked())); \
   }while(0)
 
 #if(DEBUG)
@@ -63,15 +63,18 @@ namespace node_win32ole {
     V8Variant *v8v = ObjectWrap::Unwrap<V8Variant>(th); \
     if(v8v->property_carryover.empty()) break; \
     Handle<Value> r = V8Variant::OLEFlushCarryOver(th); \
-    if(!r->IsObject()) NanReturnValue(r); \
+    if(!r->IsObject()) {\
+      info.GetReturnValue().Set(r); \
+      return; \
+    } \
     th = r->ToObject(); \
   }while(0)
 #endif
 
-#define GET_PROP(obj, prop) (obj)->Get(NanNew<String>(prop))
+#define GET_PROP(obj, prop) (obj)->Get(Nan::New<String>(prop).ToLocalChecked())
 
-#define ARRAY_AT(a, i) (a)->Get(NanNew<String>(to_s(i).c_str()))
-#define ARRAY_SET(a, i, v) (a)->Set(NanNew<String>(to_s(i).c_str()), (v))
+#define ARRAY_AT(a, i) (a)->Get(Nan::New<String>(to_s(i).c_str()).ToLocalChecked())
+#define ARRAY_SET(a, i, v) (a)->Set(Nan::New<String>(to_s(i).c_str()).ToLocalChecked(), (v))
 
 #define INSTANCE_CALL(obj, method, argc, argv) Handle<Function>::Cast( \
   GET_PROP((obj), (method)))->Call((obj), (argc), (argv))
@@ -82,7 +85,7 @@ template <class T> T *castedInternalField(Handle<Object> object, int fidx=1)
     Local<External>::Cast(object->GetInternalField(fidx))->Value());
 }
 
-extern Persistent<Object> module_target;
+extern Nan::Persistent<Object> module_target;
 
 NAN_METHOD(Method_gettimeofday);
 NAN_METHOD(Method_sleep); // ms, bool: msg, bool: \n

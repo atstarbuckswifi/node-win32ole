@@ -3,7 +3,7 @@
     {
       'target_name': 'node_win32ole',
       'include_dirs': [
-        'node_modules/nan/'
+        "<!(node -e \"require('nan')\")"
       ],
       'sources': [
         'src/node_win32ole.cc',

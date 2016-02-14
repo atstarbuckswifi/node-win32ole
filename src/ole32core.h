@@ -30,7 +30,7 @@ namespace ole32core {
 #define DISPFUNCDAT(f, a, t) // BDISPFUNCDAT((f), (a), (t))
 #endif
 
-#define BASSERT(x) chkerr((BOOL)(x), __FILE__, __LINE__, __FUNCTION__, #x)
+#define BASSERT(x) chkerr(!!(x), __FILE__, __LINE__, __FUNCTION__, #x)
 #define BVERIFY(x) BASSERT(x)
 #if defined(_DEBUG) || defined(DEBUG)
 #define DASSERT(x) BASSERT(x)

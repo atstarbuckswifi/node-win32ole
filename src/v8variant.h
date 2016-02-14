@@ -6,12 +6,11 @@
 #include "node_win32ole.h"
 #include "ole32core.h"
 
-using namespace v8;
 using namespace ole32core;
 
 namespace node_win32ole {
 
-#define ExternalNew(x) NanNew<External>((void*)(x))
+#define ExternalNew(x) Nan::New<External>((void*)(x))
 
 typedef struct _fundamental_attr {
   bool obsoleted;
@@ -21,8 +20,8 @@ typedef struct _fundamental_attr {
 
 class V8Variant : public node::ObjectWrap {
 public:
-  static Persistent<FunctionTemplate> clazz;
-  static void Init(Handle<Object> target);
+  static Nan::Persistent<FunctionTemplate> clazz;
+  static void Init(Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE target);
   static std::string CreateStdStringMBCSfromUTF8(Handle<Value> v); // *** p.
   static OCVariant *CreateOCVariant(Handle<Value> v); // *** private
   static NAN_METHOD(OLEIsA);
@@ -49,7 +48,7 @@ public:
   V8Variant() : node::ObjectWrap(), finalized(false), property_carryover() {}
   ~V8Variant() { if(!finalized) Finalize(); }
 protected:
-  NAN_WEAK_CALLBACK(Dispose);
+//  NAN_WEAK_CALLBACK(Dispose);
   void Finalize();
 protected:
   bool finalized;

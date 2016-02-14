@@ -30,42 +30,42 @@ void timeval_gettimeofday(struct timeval *ptv)
 
 NAN_METHOD(Method_gettimeofday)
 {
-  NanScope();
+//  Nan::HandleScope scope; -- should be implicit in method calls
   boolean result = false;
-  BEVERIFY(done, args.Length() >= 2);
+  BEVERIFY(done, info.Length() >= 2);
   struct timeval tv;
   timeval_gettimeofday(&tv);
-  BEVERIFY(done, args[0]->IsObject());
-  v8::Handle<v8::Object> buf = args[0]->ToObject();
+  BEVERIFY(done, info[0]->IsObject());
+  Handle<Object> buf = info[0]->ToObject();
   BEVERIFY(done, node::Buffer::Length(buf) == sizeof(struct timeval));
   memcpy(node::Buffer::Data(buf), &tv, sizeof(struct timeval));
   result = true;
 done:
-  NanReturnValue(result);
+  info.GetReturnValue().Set(result);
 }
 
 NAN_METHOD(Method_sleep) // ms, bool: msg, bool: \n
 {
-  NanScope();
+//  Nan::HandleScope scope; -- should be implicit in method calls
   boolean result = false;
-  BEVERIFY(done, args.Length() >= 1);
-  if(!args[0]->IsInt32())
-    return NanThrowError(Exception::TypeError(
-      NanNew("type of argument 1 must be Int32")));
-  long ms = args[0]->Int32Value();
+  BEVERIFY(done, info.Length() >= 1);
+  if(!info[0]->IsInt32())
+    return Nan::ThrowError(Exception::TypeError(
+      Nan::New("type of argument 1 must be Int32").ToLocalChecked()));
+  long ms = info[0]->Int32Value();
   bool msg = false;
-  if(args.Length() >= 2){
-    if(!args[1]->IsBoolean())
-      return NanThrowError(Exception::TypeError(
-        NanNew("type of argument 2 must be Boolean")));
-    msg = args[1]->BooleanValue();
+  if(info.Length() >= 2){
+    if(!info[1]->IsBoolean())
+      return Nan::ThrowError(Exception::TypeError(
+        Nan::New("type of argument 2 must be Boolean").ToLocalChecked()));
+    msg = info[1]->BooleanValue();
   }
   bool crlf = false;
-  if(args.Length() >= 3){
-    if(!args[2]->IsBoolean())
-      return NanThrowError(Exception::TypeError(
-        NanNew("type of argument 3 must be Boolean")));
-    crlf = args[2]->BooleanValue();
+  if(info.Length() >= 3){
+    if(!info[2]->IsBoolean())
+      return Nan::ThrowError(Exception::TypeError(
+        Nan::New("type of argument 3 must be Boolean").ToLocalChecked()));
+    crlf = info[2]->BooleanValue();
   }
   if(ms){
     if(msg){
@@ -85,7 +85,7 @@ NAN_METHOD(Method_sleep) // ms, bool: msg, bool: \n
   }
   result = true;
 done:
-  NanReturnValue(result);
+  info.GetReturnValue().Set(result);
 }
 
 } // namespace node_win32ole

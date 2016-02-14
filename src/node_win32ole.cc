@@ -14,35 +14,35 @@ using namespace v8;
 
 namespace node_win32ole {
 
-Persistent<Object> module_target;
+Nan::Persistent<Object> module_target;
 
 NAN_METHOD(Method_version)
 {
-  NanScope();
-  Handle<Object> local = NanNew<Object>(module_target);
-  NanReturnValue(local->Get(NanNew("VERSION")));
+//  Nan::HandleScope scope; -- should be implicit in method calls
+  Handle<Object> local = Nan::New<Object>(module_target);
+  info.GetReturnValue().Set(local->Get(Nan::New("VERSION").ToLocalChecked()));
 }
 
 NAN_METHOD(Method_printACP) // UTF-8 to MBCS (.ACP)
 {
-  NanScope();
-  if(args.Length() >= 1){
-    String::Utf8Value s(args[0]);
+//  Nan::HandleScope scope; -- should be implicit in method calls
+  if(info.Length() >= 1){
+    String::Utf8Value s(info[0]);
     char *cs = *s;
     printf(UTF82MBCS(std::string(cs)).c_str());
   }
-  NanReturnValue(true);
+  info.GetReturnValue().Set(true);
 }
 
 NAN_METHOD(Method_print) // through (as ASCII)
 {
-  NanScope();
-  if(args.Length() >= 1){
-    String::Utf8Value s(args[0]);
+//  Nan::HandleScope scope; -- should be implicit in method calls
+  if(info.Length() >= 1){
+    String::Utf8Value s(info[0]);
     char *cs = *s;
     printf(cs); // printf("%s\n", cs);
   }
-  NanReturnValue(true);
+  info.GetReturnValue().Set(true);
 }
 
 } // namespace node_win32ole
@@ -51,34 +51,27 @@ using namespace node_win32ole;
 
 namespace {
 
-void init(Handle<Object> target)
+NAN_MODULE_INIT(init)
 {
-  NanAssignPersistent(module_target, target);
+  module_target.Reset(target);
   V8Variant::Init(target);
   Client::Init(target);
-  target->ForceSet(NanNew("VERSION"),
-    NanNew("0.0.0 (will be set later)"),
+  target->ForceSet(Nan::New("VERSION").ToLocalChecked(),
+    Nan::New("0.0.0 (will be set later)").ToLocalChecked(),
     static_cast<PropertyAttribute>(DontDelete));
-  target->ForceSet(NanNew("MODULEDIRNAME"),
-    NanNew("/tmp"),
+  target->ForceSet(Nan::New("MODULEDIRNAME").ToLocalChecked(),
+    Nan::New("/tmp").ToLocalChecked(),
     static_cast<PropertyAttribute>(DontDelete));
-  target->ForceSet(NanNew("SOURCE_TIMESTAMP"),
-    NanNew(__FILE__ " " __DATE__ " " __TIME__),
+  target->ForceSet(Nan::New("SOURCE_TIMESTAMP").ToLocalChecked(),
+    Nan::New(__FILE__ " " __DATE__ " " __TIME__).ToLocalChecked(),
     static_cast<PropertyAttribute>(ReadOnly | DontDelete));
-  target->Set(NanNew("version"),
-    NanNew<FunctionTemplate>(Method_version)->GetFunction());
-  target->Set(NanNew("printACP"),
-    NanNew<FunctionTemplate>(Method_printACP)->GetFunction());
-  target->Set(NanNew("print"),
-    NanNew<FunctionTemplate>(Method_print)->GetFunction());
-  target->Set(NanNew("gettimeofday"),
-    NanNew<FunctionTemplate>(Method_gettimeofday)->GetFunction());
-  target->Set(NanNew("sleep"),
-    NanNew<FunctionTemplate>(Method_sleep)->GetFunction());
-  target->Set(NanNew("force_gc_extension"),
-    NanNew<FunctionTemplate>(Method_force_gc_extension)->GetFunction());
-  target->Set(NanNew("force_gc_internal"),
-    NanNew<FunctionTemplate>(Method_force_gc_internal)->GetFunction());
+  Nan::Export(target, "version", Method_version);
+  Nan::Export(target, "printACP", Method_printACP);
+  Nan::Export(target, "print", Method_print);
+  Nan::Export(target, "gettimeofday", Method_gettimeofday);
+  Nan::Export(target, "sleep", Method_sleep);
+  Nan::Export(target, "force_gc_extension", Method_force_gc_extension);
+  Nan::Export(target, "force_gc_internal", Method_force_gc_internal);
 }
 
 } // namespace
