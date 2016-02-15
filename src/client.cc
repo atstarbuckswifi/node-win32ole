@@ -31,20 +31,17 @@ NAN_METHOD(Client::New)
 {
   DISPFUNCIN();
   if(!info.IsConstructCall())
-    return Nan::ThrowError(Exception::TypeError(
-      Nan::New("Use the new operator to create new Client objects").ToLocalChecked()));
+    return Nan::ThrowTypeError("Use the new operator to create new Client objects");
   std::string cstr_locale(".ACP"); // default
   if(info.Length() >= 1){
     if(!info[0]->IsString())
-      return Nan::ThrowError(Exception::TypeError(
-        Nan::New("Argument 1 is not a String").ToLocalChecked()));
+      return Nan::ThrowTypeError("Argument 1 is not a String");
     String::Utf8Value u8s_locale(info[0]);
     cstr_locale = std::string(*u8s_locale);
   }
   OLE32core *oc = new OLE32core();
   if(!oc)
-    return Nan::ThrowError(Exception::TypeError(
-      Nan::New("Can't create new Client object (null OLE32core)").ToLocalChecked()));
+    return Nan::ThrowTypeError("Can't create new Client object (null OLE32core)");
   bool cnresult = false;
   try{
     cnresult = oc->connect(cstr_locale);
@@ -54,8 +51,7 @@ NAN_METHOD(Client::New)
     std::cerr << e << cstr_locale.c_str() << std::endl;
   }
   if(!cnresult)
-    return Nan::ThrowError(Exception::TypeError(
-      Nan::New("May be CoInitialize() is failed.").ToLocalChecked()));
+    return Nan::ThrowTypeError("May be CoInitialize() is failed.");
   Local<Object> thisObject = info.This();
   Client *cl = new Client(); // must catch exception
   cl->Wrap(thisObject); // InternalField[0]
@@ -129,7 +125,7 @@ NAN_METHOD(Client::Dispatch)
   return info.GetReturnValue().Set(vApp);
 done:
   DISPFUNCOUT();
-  Nan::ThrowError(Exception::TypeError(Nan::New("Dispatch failed").ToLocalChecked()));
+  return Nan::ThrowTypeError("Dispatch failed");
 }
 
 NAN_METHOD(Client::Finalize)

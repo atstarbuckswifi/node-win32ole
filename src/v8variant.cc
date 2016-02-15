@@ -13,16 +13,13 @@ namespace node_win32ole {
 
 #define CHECK_OLE_ARGS(info, n, av0, av1) do{ \
     if(info.Length() < n) \
-      return Nan::ThrowError(Exception::TypeError( \
-        Nan::New(__FUNCTION__" takes exactly " #n " argument(s)").ToLocalChecked())); \
+      return Nan::ThrowTypeError(__FUNCTION__ " takes exactly " #n " argument(s)"); \
     if(!info[0]->IsString()) \
-      return Nan::ThrowError(Exception::TypeError( \
-        Nan::New(__FUNCTION__" the first argument is not a Symbol").ToLocalChecked())); \
+      return Nan::ThrowTypeError(__FUNCTION__ " the first argument is not a Symbol"); \
     if(n == 1) \
       if(info.Length() >= 2) \
         if(!info[1]->IsArray()) \
-          return Nan::ThrowError(Exception::TypeError(Nan::New( \
-            __FUNCTION__" the second argument is not an Array").ToLocalChecked())); \
+          return Nan::ThrowTypeError(__FUNCTION__ " the second argument is not an Array"); \
         else av1 = info[1]; /* Array */ \
       else av1 = Nan::New<Array>(0); /* change none to Array[] */ \
     else av1 = info[1]; /* may not be Array */ \
@@ -199,8 +196,7 @@ NAN_METHOD(V8Variant::OLEBoolean)
   OCVariant *ocv = castedInternalField<OCVariant>(info.This());
   CHECK_OCV(ocv);
   if(ocv->v.vt != VT_BOOL)
-    return Nan::ThrowError(Exception::TypeError(
-      Nan::New("OLEBoolean source type OCVariant is not VT_BOOL").ToLocalChecked()));
+    return Nan::ThrowTypeError("OLEBoolean source type OCVariant is not VT_BOOL");
   bool c_boolVal = ocv->v.boolVal == VARIANT_FALSE ? 0 : !0;
   DISPFUNCOUT();
   return info.GetReturnValue().Set(c_boolVal);
@@ -213,8 +209,7 @@ NAN_METHOD(V8Variant::OLEInt32)
   CHECK_OCV(ocv);
   if(ocv->v.vt != VT_I4 && ocv->v.vt != VT_INT
   && ocv->v.vt != VT_UI4 && ocv->v.vt != VT_UINT)
-    return Nan::ThrowError(Exception::TypeError(
-      Nan::New("OLEInt32 source type OCVariant is not VT_I4 nor VT_INT nor VT_UI4 nor VT_UINT").ToLocalChecked()));
+    return Nan::ThrowTypeError("OLEInt32 source type OCVariant is not VT_I4 nor VT_INT nor VT_UI4 nor VT_UINT");
   DISPFUNCOUT();
   return info.GetReturnValue().Set(Nan::New(ocv->v.lVal));
 }
@@ -225,8 +220,7 @@ NAN_METHOD(V8Variant::OLEInt64)
   OCVariant *ocv = castedInternalField<OCVariant>(info.This());
   CHECK_OCV(ocv);
   if(ocv->v.vt != VT_I8 && ocv->v.vt != VT_UI8)
-    return Nan::ThrowError(Exception::TypeError(
-      Nan::New("OLEInt64 source type OCVariant is not VT_I8 nor VT_UI8").ToLocalChecked()));
+    return Nan::ThrowTypeError("OLEInt64 source type OCVariant is not VT_I8 nor VT_UI8");
   DISPFUNCOUT();
   return info.GetReturnValue().Set(Nan::New<Number>(ocv->v.llVal));
 }
@@ -237,8 +231,7 @@ NAN_METHOD(V8Variant::OLENumber)
   OCVariant *ocv = castedInternalField<OCVariant>(info.This());
   CHECK_OCV(ocv);
   if(ocv->v.vt != VT_R8)
-    return Nan::ThrowError(Exception::TypeError(
-      Nan::New("OLENumber source type OCVariant is not VT_R8").ToLocalChecked()));
+    return Nan::ThrowTypeError("OLENumber source type OCVariant is not VT_R8");
   DISPFUNCOUT();
   return info.GetReturnValue().Set(Nan::New(ocv->v.dblVal));
 }
@@ -249,8 +242,7 @@ NAN_METHOD(V8Variant::OLEDate)
   OCVariant *ocv = castedInternalField<OCVariant>(info.This());
   CHECK_OCV(ocv);
   if(ocv->v.vt != VT_DATE)
-    return Nan::ThrowError(Exception::TypeError(
-      Nan::New("OLEDate source type OCVariant is not VT_DATE").ToLocalChecked()));
+    return Nan::ThrowTypeError("OLEDate source type OCVariant is not VT_DATE");
   SYSTEMTIME syst;
   VariantTimeToSystemTime(ocv->v.date, &syst);
   struct tm t = {0}; // set t.tm_isdst = 0
@@ -270,8 +262,7 @@ NAN_METHOD(V8Variant::OLEUtf8)
   OCVariant *ocv = castedInternalField<OCVariant>(info.This());
   CHECK_OCV(ocv);
   if(ocv->v.vt != VT_BSTR)
-    return Nan::ThrowError(Exception::TypeError(
-      Nan::New("OLEUtf8 source type OCVariant is not VT_BSTR").ToLocalChecked()));
+    return Nan::ThrowTypeError("OLEUtf8 source type OCVariant is not VT_BSTR");
   Handle<Value> result;
   if(!ocv->v.bstrVal) result = Nan::Undefined(); // or Null();
   else {
@@ -393,8 +384,7 @@ NAN_METHOD(V8Variant::New)
 {
   DISPFUNCIN();
   if(!info.IsConstructCall())
-    return Nan::ThrowError(Exception::TypeError(
-      Nan::New("Use the new operator to create new V8Variant objects").ToLocalChecked()));
+    return Nan::ThrowTypeError("Use the new operator to create new V8Variant objects");
   OCVariant *ocv = new OCVariant();
   CHECK_OCV(ocv);
   Local<Object> thisObject = info.This();
@@ -481,8 +471,7 @@ NAN_METHOD(OLEInvoke)
   return;
 done:
   OLETRACEOUT();
-  return Nan::ThrowError(Exception::TypeError(
-    Nan::New(__FUNCTION__" failed").ToLocalChecked()));
+  return Nan::ThrowTypeError(__FUNCTION__ " failed");
 }
 
 NAN_METHOD(V8Variant::OLECall)
@@ -519,8 +508,7 @@ NAN_METHOD(V8Variant::OLESet)
   CHECK_OLE_ARGS(info, 2, av0, av1);
   OCVariant *argchain = V8Variant::CreateOCVariant(av1);
   if(!argchain)
-    return Nan::ThrowError(Exception::TypeError(Nan::New(
-      __FUNCTION__" the second argument is not valid (null OCVariant)").ToLocalChecked()));
+    return Nan::ThrowTypeError(__FUNCTION__ " the second argument is not valid (null OCVariant)");
   bool result = false;
   String::Utf8Value u8s(av0);
   wchar_t *wcs = u8s2wcs(*u8s);
@@ -536,8 +524,7 @@ NAN_METHOD(V8Variant::OLESet)
   return info.GetReturnValue().Set(result);
 done:
   OLETRACEOUT();
-  return Nan::ThrowError(Exception::TypeError(
-    Nan::New(__FUNCTION__" failed").ToLocalChecked()));
+  return Nan::ThrowTypeError(__FUNCTION__ " failed");
 }
 
 NAN_METHOD(V8Variant::OLECallComplete)

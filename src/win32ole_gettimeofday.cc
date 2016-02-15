@@ -48,21 +48,18 @@ NAN_METHOD(Method_sleep) // ms, bool: msg, bool: \n
   boolean result = false;
   BEVERIFY(done, info.Length() >= 1);
   if(!info[0]->IsInt32())
-    return Nan::ThrowError(Exception::TypeError(
-      Nan::New("type of argument 1 must be Int32").ToLocalChecked()));
+    return Nan::ThrowTypeError("type of argument 1 must be Int32");
   long ms = Nan::To<int32_t>(info[0]).FromJust();
   bool msg = false;
   if(info.Length() >= 2){
     if(!info[1]->IsBoolean())
-      return Nan::ThrowError(Exception::TypeError(
-        Nan::New("type of argument 2 must be Boolean").ToLocalChecked()));
+      return Nan::ThrowTypeError("type of argument 2 must be Boolean");
     msg = Nan::To<bool>(info[1]).FromJust();
   }
   bool crlf = false;
   if(info.Length() >= 3){
     if(!info[2]->IsBoolean())
-      return Nan::ThrowError(Exception::TypeError(
-        Nan::New("type of argument 3 must be Boolean").ToLocalChecked()));
+      return Nan::ThrowTypeError("type of argument 3 must be Boolean");
     crlf = Nan::To<bool>(info[2]).FromJust();
   }
   if(ms){

@@ -15,11 +15,9 @@ NAN_METHOD(Method_force_gc_internal)
 {
   std::cerr << "-in: " __FUNCTION__ << std::endl;
   if(info.Length() < 1)
-    return Nan::ThrowError(Exception::TypeError(
-      Nan::New("this function takes at least 1 argument(s)").ToLocalChecked()));
+    return Nan::ThrowTypeError("this function takes at least 1 argument(s)");
   if(!info[0]->IsInt32())
-    return Nan::ThrowError(Exception::TypeError(
-      Nan::New("type of argument 1 must be Int32").ToLocalChecked()));
+    return Nan::ThrowTypeError("type of argument 1 must be Int32");
   int flags = (int)info[0]->Int32Value();
   while (!Nan::IdleNotification(100)){}
   std::cerr << "-out: " __FUNCTION__ << std::endl;
