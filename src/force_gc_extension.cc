@@ -26,7 +26,7 @@ NAN_METHOD(Method_force_gc_extension) // v8/gc : gc()
   Nan::HandleScope scope;
   BDISPFUNCIN();
   Local<String> sourceObj = Nan::New("gc()").ToLocalChecked();
-  TryCatch try_catch;
+  Nan::TryCatch try_catch;
   Local<Script> scriptObj = Script::Compile(sourceObj);
   if(scriptObj.IsEmpty()){
     std::string msg("Can't compile v8/gc : gc();\n");
@@ -43,7 +43,7 @@ NAN_METHOD(Method_force_gc_extension) // v8/gc : gc()
   }
   String::Utf8Value result(local_result);
   BDISPFUNCOUT();
-  info.GetReturnValue().Set(Nan::New(*result).ToLocalChecked());
+  return info.GetReturnValue().Set(Nan::New(*result).ToLocalChecked());
 }
 
 } // namespace node_win32ole

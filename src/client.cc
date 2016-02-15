@@ -12,7 +12,6 @@ using namespace ole32core;
 
 namespace node_win32ole {
 
-static void Client_Dispose(const Nan::WeakCallbackInfo<OLE32core> &data);
 Nan::Persistent<FunctionTemplate> Client::clazz;
 
 void Client::Init(Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE target)
@@ -21,16 +20,15 @@ void Client::Init(Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE target)
   Local<FunctionTemplate> t = Nan::New<FunctionTemplate>(New);
   t->InstanceTemplate()->SetInternalFieldCount(2);
   t->SetClassName(Nan::New("Client").ToLocalChecked());
-//  NODE_SET_PROTOTYPE_METHOD(clazz, "New", New);
+//  Nan::SetPrototypeMethod(t, "New", New);
   Nan::SetPrototypeMethod(t, "Dispatch", Dispatch);
   Nan::SetPrototypeMethod(t, "Finalize", Finalize);
-  target->Set(Nan::New("Client").ToLocalChecked(), t->GetFunction());
+  Nan::Set(target, Nan::New("Client").ToLocalChecked(), Nan::GetFunction(t).ToLocalChecked());
   clazz.Reset(t);
 }
 
 NAN_METHOD(Client::New)
 {
-//  Nan::HandleScope scope; -- should be implicit in method calls
   DISPFUNCIN();
   if(!info.IsConstructCall())
     return Nan::ThrowError(Exception::TypeError(
@@ -63,14 +61,13 @@ NAN_METHOD(Client::New)
   cl->Wrap(thisObject); // InternalField[0]
   thisObject->SetInternalField(1, Nan::New<External>(oc));
   Nan::Persistent<Object> permObj(thisObject);
-  permObj.SetWeak(oc, Client_Dispose, Nan::WeakCallbackType::kParameter);
+  permObj.SetWeak(oc, Dispose, Nan::WeakCallbackType::kParameter);
   DISPFUNCOUT();
-  info.GetReturnValue().Set(Nan::New(permObj));
+  return info.GetReturnValue().Set(thisObject);
 }
 
 NAN_METHOD(Client::Dispatch)
 {
-//  Nan::HandleScope scope; -- should be implicit in method calls
   DISPFUNCIN();
   BEVERIFY(done, info.Length() >= 1);
   BEVERIFY(done, info[0]->IsString());
@@ -129,8 +126,7 @@ NAN_METHOD(Client::Dispatch)
   if(FAILED(hr)) BDISPFUNCDAT("FAILED CoCreateInstance: %d: 0x%08x\n", 1, hr);
   BEVERIFY(done, !FAILED(hr));
   DISPFUNCOUT();
-  info.GetReturnValue().Set(vApp);
-  return;
+  return info.GetReturnValue().Set(vApp);
 done:
   DISPFUNCOUT();
   Nan::ThrowError(Exception::TypeError(Nan::New("Dispatch failed").ToLocalChecked()));
@@ -138,7 +134,6 @@ done:
 
 NAN_METHOD(Client::Finalize)
 {
-//  Nan::HandleScope scope; -- should be implicit in method calls
   DISPFUNCIN();
 #if(0)
   std::cerr << __FUNCTION__ << " Finalizer is called\a" << std::endl;
@@ -146,7 +141,7 @@ NAN_METHOD(Client::Finalize)
 #endif
   Local<Object> thisObject = info.This();
 #if(0)
-  Client *cl = ObjectWrap::Unwrap<Client>(thisObject);
+  Client *cl = node::ObjectWrap::Unwrap<Client>(thisObject);
   if(cl) delete cl; // it has been already deleted ?
   thisObject->SetInternalField(0, External::New(NULL));
 #endif
@@ -162,10 +157,10 @@ NAN_METHOD(Client::Finalize)
 #endif
   thisObject->SetInternalField(1, ExternalNew(NULL));
   DISPFUNCOUT();
-  info.GetReturnValue().Set(info.This());
+  return info.GetReturnValue().Set(info.This());
 }
 
-static void Client_Dispose(const Nan::WeakCallbackInfo<OLE32core> &data)
+void Client::Dispose(const Nan::WeakCallbackInfo<OLE32core> &data)
 {
   DISPFUNCIN();
 #if(0)

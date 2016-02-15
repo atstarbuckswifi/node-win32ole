@@ -7,6 +7,9 @@
 #include "ole32core.h"
 
 using namespace ole32core;
+namespace ole32core {
+  class OCVariant;
+}
 
 namespace node_win32ole {
 
@@ -48,7 +51,7 @@ public:
   V8Variant() : node::ObjectWrap(), finalized(false), property_carryover() {}
   ~V8Variant() { if(!finalized) Finalize(); }
 protected:
-//  NAN_WEAK_CALLBACK(Dispose);
+  static void Dispose(const Nan::WeakCallbackInfo<ole32core::OCVariant> &data);
   void Finalize();
 protected:
   bool finalized;

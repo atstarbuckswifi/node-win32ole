@@ -6,6 +6,9 @@
 #include "node_win32ole.h"
 
 using namespace v8;
+namespace ole32core {
+  class OLE32core;
+}
 
 namespace node_win32ole {
 
@@ -20,7 +23,7 @@ public:
   Client() : node::ObjectWrap(), finalized(false) {}
   ~Client() { if(!finalized) Finalize(); }
 protected:
-  //NAN_WEAK_CALLBACK(Dispose);
+  static void Dispose(const Nan::WeakCallbackInfo<ole32core::OLE32core> &data);
   void Finalize();
 protected:
   bool finalized;

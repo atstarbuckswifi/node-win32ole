@@ -20,7 +20,10 @@ NAN_METHOD(Method_version)
 {
 //  Nan::HandleScope scope; -- should be implicit in method calls
   Handle<Object> local = Nan::New<Object>(module_target);
-  info.GetReturnValue().Set(local->Get(Nan::New("VERSION").ToLocalChecked()));
+  auto ver = Nan::Get(local, Nan::New("VERSION").ToLocalChecked());
+  if (!ver.IsEmpty()) {
+    return info.GetReturnValue().Set(ver.ToLocalChecked());
+  }
 }
 
 NAN_METHOD(Method_printACP) // UTF-8 to MBCS (.ACP)
@@ -31,7 +34,7 @@ NAN_METHOD(Method_printACP) // UTF-8 to MBCS (.ACP)
     char *cs = *s;
     printf(UTF82MBCS(std::string(cs)).c_str());
   }
-  info.GetReturnValue().Set(true);
+  return info.GetReturnValue().Set(true);
 }
 
 NAN_METHOD(Method_print) // through (as ASCII)
@@ -42,7 +45,7 @@ NAN_METHOD(Method_print) // through (as ASCII)
     char *cs = *s;
     printf(cs); // printf("%s\n", cs);
   }
-  info.GetReturnValue().Set(true);
+  return info.GetReturnValue().Set(true);
 }
 
 } // namespace node_win32ole
@@ -56,13 +59,13 @@ NAN_MODULE_INIT(init)
   module_target.Reset(target);
   V8Variant::Init(target);
   Client::Init(target);
-  target->ForceSet(Nan::New("VERSION").ToLocalChecked(),
+  Nan::ForceSet(target, Nan::New("VERSION").ToLocalChecked(),
     Nan::New("0.0.0 (will be set later)").ToLocalChecked(),
     static_cast<PropertyAttribute>(DontDelete));
-  target->ForceSet(Nan::New("MODULEDIRNAME").ToLocalChecked(),
+  Nan::ForceSet(target, Nan::New("MODULEDIRNAME").ToLocalChecked(),
     Nan::New("/tmp").ToLocalChecked(),
     static_cast<PropertyAttribute>(DontDelete));
-  target->ForceSet(Nan::New("SOURCE_TIMESTAMP").ToLocalChecked(),
+  Nan::ForceSet(target, Nan::New("SOURCE_TIMESTAMP").ToLocalChecked(),
     Nan::New(__FILE__ " " __DATE__ " " __TIME__).ToLocalChecked(),
     static_cast<PropertyAttribute>(ReadOnly | DontDelete));
   Nan::Export(target, "version", Method_version);
