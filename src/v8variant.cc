@@ -400,7 +400,7 @@ NAN_METHOD(V8Variant::New)
 Handle<Value> V8Variant::OLEFlushCarryOver(Handle<Value> v)
 {
   OLETRACEIN();
-  OLETRACEVT(v->ToObject());
+  OLETRACEVT_UNDEFINED(v->ToObject());
   Handle<Value> result = Nan::Undefined();
   V8Variant *v8v = node::ObjectWrap::Unwrap<V8Variant>(v->ToObject());
   if(v8v->property_carryover.empty()){
@@ -410,7 +410,7 @@ Handle<Value> V8Variant::OLEFlushCarryOver(Handle<Value> v)
   }else{
     const char *name = v8v->property_carryover.c_str();
     {
-      OLETRACEPREARGV(NanNew(name));
+      OLETRACEPREARGV(Nan::New(name).ToLocalChecked());
       OLETRACEARGV();
     }
     OLETRACEFLUSH();
@@ -540,7 +540,7 @@ NAN_METHOD(V8Variant::OLECallComplete)
   }else{
     const char *name = v8v->property_carryover.c_str();
     {
-      OLETRACEPREARGV(NanNew(name));
+      OLETRACEPREARGV(Nan::New(name).ToLocalChecked());
       OLETRACEARGV();
     }
     OLETRACEARGS();

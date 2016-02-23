@@ -30,6 +30,14 @@ namespace node_win32ole {
     std::cerr << "vt=" << ocv->v.vt << ":"; \
     std::cerr.flush(); \
   }while(0)
+#define OLETRACEVT_UNDEFINED(th) do{ \
+    OCVariant *ocv = castedInternalField<OCVariant>(th); \
+    if(!ocv){ std::cerr << "*** OCVariant is NULL ***"; std::cerr.flush(); } \
+    CHECK_OCV_UNDEFINED(ocv); \
+    std::cerr << "0x" << std::setw(8) << std::left << std::hex << ocv << ":"; \
+    std::cerr << "vt=" << ocv->v.vt << ":"; \
+    std::cerr.flush(); \
+  }while(0)
 #define OLETRACEARG(v) do{ \
     std::cerr << (v->IsObject() ? "OBJECT" : *String::Utf8Value(v)) << ","; \
   }while(0)
@@ -39,7 +47,7 @@ namespace node_win32ole {
     for(int i = 0; i < argc; ++i) OLETRACEARG(argv[i]); \
   }while(0)
 #define OLETRACEARGS() do{ \
-    for(int i = 0; i < info.Length(); ++i) OLETRACEARG(args[i]); \
+    for(int i = 0; i < info.Length(); ++i) OLETRACEARG(info[i]); \
   }while(0)
 #define OLETRACEFLUSH() do{ std::cerr<<std::endl; std::cerr.flush(); }while(0)
 #define OLETRACEOUT() BDISPFUNCOUT()
