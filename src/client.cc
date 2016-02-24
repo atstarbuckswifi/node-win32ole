@@ -4,8 +4,6 @@
 
 #include "client.h"
 #include "v8variant.h"
-#include <node.h>
-#include <nan.h>
 
 using namespace v8;
 using namespace ole32core;
@@ -18,7 +16,7 @@ void Client::Init(Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE target)
 {
   Nan::HandleScope scope;
   Local<FunctionTemplate> t = Nan::New<FunctionTemplate>(New);
-  t->InstanceTemplate()->SetInternalFieldCount(2);
+  t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(Nan::New("Client").ToLocalChecked());
 //  Nan::SetPrototypeMethod(t, "New", New);
   Nan::SetPrototypeMethod(t, "Dispatch", Dispatch);
@@ -39,12 +37,14 @@ NAN_METHOD(Client::New)
     String::Utf8Value u8s_locale(info[0]);
     cstr_locale = std::string(*u8s_locale);
   }
-  OLE32core *oc = new OLE32core();
-  if(!oc)
-    return Nan::ThrowTypeError("Can't create new Client object (null OLE32core)");
+  Local<Object> thisObject = info.This();
+  Client *cl = new Client(); // must catch exception
+  if (!cl)
+	  return Nan::ThrowTypeError("Can't create new Client object (null OLE32core)");
+  cl->Wrap(thisObject); // InternalField[0]
   bool cnresult = false;
   try{
-    cnresult = oc->connect(cstr_locale);
+    cnresult = cl->oc.connect(cstr_locale);
   }catch(OLE32coreException e){
     std::cerr << e.errorMessage((char *)cstr_locale.c_str());
   }catch(char *e){
@@ -52,12 +52,6 @@ NAN_METHOD(Client::New)
   }
   if(!cnresult)
     return Nan::ThrowTypeError("May be CoInitialize() is failed.");
-  Local<Object> thisObject = info.This();
-  Client *cl = new Client(); // must catch exception
-  cl->Wrap(thisObject); // InternalField[0]
-  thisObject->SetInternalField(1, Nan::New<External>(oc));
-  Nan::Persistent<Object> permObj(thisObject);
-  permObj.SetWeak(oc, Dispose, Nan::WeakCallbackType::kParameter);
   DISPFUNCOUT();
   return info.GetReturnValue().Set(thisObject);
 }
@@ -135,60 +129,19 @@ NAN_METHOD(Client::Finalize)
   std::cerr << __FUNCTION__ << " Finalizer is called\a" << std::endl;
   std::cerr.flush();
 #endif
-  Local<Object> thisObject = info.This();
-#if(0)
-  Client *cl = node::ObjectWrap::Unwrap<Client>(thisObject);
-  if(cl) delete cl; // it has been already deleted ?
-  thisObject->SetInternalField(0, External::New(NULL));
-#endif
-#if(1) // now GC will call Disposer automatically
-  OLE32core *oc = castedInternalField<OLE32core>(thisObject);
-  if(oc){
-    try{
-      delete oc; // will call oc->disconnect();
-    }catch(OLE32coreException e){ std::cerr << e.errorMessage(__FUNCTION__);
-    }catch(char *e){ std::cerr << e << __FUNCTION__ << std::endl;
-    }
-  }
-#endif
-  thisObject->SetInternalField(1, ExternalNew(NULL));
+  Client *cl = Client::Unwrap<Client>(info.This());
+  if (cl) cl->Finalize();
   DISPFUNCOUT();
   return info.GetReturnValue().Set(info.This());
 }
 
-void Client::Dispose(const Nan::WeakCallbackInfo<OLE32core> &data)
-{
-  DISPFUNCIN();
-#if(0)
-//  std::cerr << __FUNCTION__ << " Disposer is called\a" << std::endl;
-  std::cerr << __FUNCTION__ << " Disposer is called" << std::endl;
-  std::cerr.flush();
-#endif
-#if(0) // it has been already deleted ?
-  OLE32core *p = castedInternalField<OLE32core>(data.getInternalField(1));
-  if(!p){
-    std::cerr << __FUNCTION__;
-    std::cerr << " InternalField[1] has been already deleted" << std::endl;
-    std::cerr.flush();
-  }
-#endif
-//  else{
-    OLE32core *oc = data.GetParameter(); // oc may be same as p
-    if(oc){
-      try{
-        delete oc; // will call oc->disconnect();
-      }catch(OLE32coreException e){ std::cerr << e.errorMessage(__FUNCTION__);
-      }catch(char *e){ std::cerr << e << __FUNCTION__ << std::endl;
-      }
-    }
-//  }
-  DISPFUNCOUT();
-}
-
 void Client::Finalize()
 {
-  assert(!finalized);
-  finalized = true;
+  if (!finalized)
+  {
+    oc.disconnect();
+    finalized = true;
+  }
 }
 
 } // namespace node_win32ole
