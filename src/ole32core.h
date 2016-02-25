@@ -77,7 +77,6 @@ public:
 class OCVariant {
 public:
   VARIANT v;
-  OCVariant *next;
 public:
   OCVariant(); // result
   OCVariant(const OCVariant &s); // copy
@@ -88,16 +87,14 @@ public:
   OCVariant(BSTR bstrVal); // VT_BSTR (previous allocated)
   OCVariant(std::string str); // allocate and convert to VT_BSTR
   virtual ~OCVariant();
-  OCVariant *push(OCVariant *p); // push to chain top
-  unsigned int size(); // length of chain (count next and self)
   void checkOLEresult(std::string msg);
 protected:
   HRESULT AutoWrap(int autoType, VARIANT *pvResult,
-    LPOLESTR ptName, OCVariant *argchain=NULL);
+    LPOLESTR ptName, OCVariant *argchain=NULL, unsigned argLen = 0);
 public:
-  OCVariant *getProp(LPOLESTR prop, OCVariant *argchain=NULL);
-  OCVariant *putProp(LPOLESTR prop, OCVariant *argchain=NULL);
-  OCVariant *invoke(LPOLESTR method, OCVariant *argchain=NULL, bool re=false);
+  OCVariant *getProp(LPOLESTR prop, OCVariant *argchain=NULL, unsigned argLen=0);
+  OCVariant *putProp(LPOLESTR prop, OCVariant *argchain=NULL, unsigned argLen = 0);
+  OCVariant *invoke(LPOLESTR method, OCVariant *argchain=NULL, unsigned argLen = 0, bool re=false);
 };
 
 class OLE32core {

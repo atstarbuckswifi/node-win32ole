@@ -415,8 +415,8 @@ Handle<Value> V8Variant::OLEFlushCarryOver(Handle<Value> v)
     }
     OLETRACEFLUSH();
     Handle<Value> argv[] = {Nan::New(name).ToLocalChecked(), Nan::New<Array>(0)};
-    int argc = sizeof(argv) / sizeof(argv[0]);
-    v8v->property_carryover.erase();
+    int argc = sizeof(argv) / sizeof(argv[0]); // == 2
+    v8v->property_carryover.clear();
     result = INSTANCE_CALL(v->ToObject(), "call", argc, argv);
     OCVariant *rv = V8Variant::CreateOCVariant(result);
 	CHECK_OCV_UNDEFINED(rv);
@@ -439,14 +439,13 @@ NAN_METHOD(OLEInvoke)
   CHECK_OCV(ocv);
   Handle<Value> av0, av1;
   CHECK_OLE_ARGS(info, 1, av0, av1);
-  OCVariant *argchain = NULL;
   Array *a = Array::Cast(*av1);
-  for(size_t i = 0; i < a->Length(); ++i){
-    OCVariant *o = V8Variant::CreateOCVariant(
-      ARRAY_AT(a, (i ? i : a->Length()) - 1));
+  uint32_t argLen = a->Length();
+  OCVariant *argchain = argLen ? new OCVariant[argLen] : NULL;
+  for(size_t i = 0; i < argLen; ++i){
+    OCVariant *o = V8Variant::CreateOCVariant(ARRAY_AT(a, i));
     CHECK_OCV(o);
-    if(!i) argchain = o;
-    else argchain->push(o);
+    argchain[argLen - i - 1] = o; // why is this backwards? I'm copying the original intent(?) until I can test this
   }
   Handle<Object> vResult = V8Variant::CreateUndefined();
   String::Utf8Value u8s(av0);
@@ -455,7 +454,7 @@ NAN_METHOD(OLEInvoke)
   BEVERIFY(done, wcs);
   try{
     OCVariant *rv = isCall ? // argchain will be deleted automatically
-      ocv->invoke(wcs, argchain, true) : ocv->getProp(wcs, argchain);
+      ocv->invoke(wcs, argchain, argLen, true) : ocv->getProp(wcs, argchain, argLen);
     if(rv){
       OCVariant *o = castedInternalField<OCVariant>(vResult);
       CHECK_OCV(o);
@@ -545,11 +544,12 @@ NAN_METHOD(V8Variant::OLECallComplete)
     }
     OLETRACEARGS();
     OLETRACEFLUSH();
-    Handle<Array> a = Nan::New<Array>(info.Length());
-    for(int i = 0; i < info.Length(); ++i) ARRAY_SET(a, i, info[i]);
+    int argLen = info.Length();
+    Handle<Array> a = Nan::New<Array>(argLen);
+    for(int i = 0; i < argLen; ++i) ARRAY_SET(a, i, info[i]);
     Handle<Value> argv[] = {Nan::New(name).ToLocalChecked(), a};
-    int argc = sizeof(argv) / sizeof(argv[0]);
-    v8v->property_carryover.erase();
+    int argc = sizeof(argv) / sizeof(argv[0]); // == 2
+    v8v->property_carryover.clear();
     result = INSTANCE_CALL(info.This(), "call", argc, argv);
   }
 //_

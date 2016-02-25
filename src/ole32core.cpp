@@ -206,7 +206,7 @@ string OLE32coreException::errorMessage(char *m)
   return oss.str();
 }
 
-OCVariant::OCVariant() : next(NULL)
+OCVariant::OCVariant()
 {
   DISPFUNCIN();
   VariantInit(&v);
@@ -214,7 +214,7 @@ OCVariant::OCVariant() : next(NULL)
   DISPFUNCOUT();
 }
 
-OCVariant::OCVariant(const OCVariant &s) : next(NULL)
+OCVariant::OCVariant(const OCVariant &s)
 {
   DISPFUNCIN();
   VariantInit(&v); // It will be free before copy.
@@ -223,7 +223,7 @@ OCVariant::OCVariant(const OCVariant &s) : next(NULL)
   DISPFUNCOUT();
 }
 
-OCVariant::OCVariant(bool c_boolVal) : next(NULL)
+OCVariant::OCVariant(bool c_boolVal)
 {
   DISPFUNCIN();
   VariantInit(&v);
@@ -233,7 +233,7 @@ OCVariant::OCVariant(bool c_boolVal) : next(NULL)
   DISPFUNCOUT();
 }
 
-OCVariant::OCVariant(long lVal) : next(NULL)
+OCVariant::OCVariant(long lVal)
 {
   DISPFUNCIN();
   VariantInit(&v);
@@ -243,7 +243,7 @@ OCVariant::OCVariant(long lVal) : next(NULL)
   DISPFUNCOUT();
 }
 
-OCVariant::OCVariant(double dblVal) : next(NULL)
+OCVariant::OCVariant(double dblVal)
 {
   DISPFUNCIN();
   VariantInit(&v);
@@ -253,7 +253,7 @@ OCVariant::OCVariant(double dblVal) : next(NULL)
   DISPFUNCOUT();
 }
 
-OCVariant::OCVariant(double date, bool isdate) : next(NULL)
+OCVariant::OCVariant(double date, bool isdate)
 {
   DISPFUNCIN();
   VariantInit(&v);
@@ -263,7 +263,7 @@ OCVariant::OCVariant(double date, bool isdate) : next(NULL)
   DISPFUNCOUT();
 }
 
-OCVariant::OCVariant(BSTR bstrVal) : next(NULL)
+OCVariant::OCVariant(BSTR bstrVal)
 {
   DISPFUNCIN();
   VariantInit(&v);
@@ -273,7 +273,7 @@ OCVariant::OCVariant(BSTR bstrVal) : next(NULL)
   DISPFUNCOUT();
 }
 
-OCVariant::OCVariant(string str) : next(NULL)
+OCVariant::OCVariant(string str)
 {
   DISPFUNCIN();
   VariantInit(&v);
@@ -288,19 +288,7 @@ OCVariant::~OCVariant()
   DISPFUNCIN();
   DISPFUNCDAT("--destruction-- %08p %08lx\n", &v, v.vt);
   DISPFUNCDAT("---(first step in)%d%d", 0, 0);
-#if(0) // recursive (use stack)
-  if(next){
-    delete next;
-    next = NULL;
-  }
-#else // loop (not use stack)
-  while(next){
-    OCVariant **p; // use scope after for
-    for(p = &next; (*p)->next; p = &(*p)->next){} // find tail
-    delete *p; // delete a tail ( p points &next when all tails are deleted )
-    *p = NULL;
-  }
-#endif
+
   // The first node (== self) only be reversed.
   // 1, n, ..., 5, 4, 3, 2
   DISPFUNCDAT("---(first step out)%d%d", 0, 0);
@@ -321,24 +309,6 @@ OCVariant::~OCVariant()
   DISPFUNCOUT();
 }
 
-OCVariant *OCVariant::push(OCVariant *p)
-{
-  // The first node (== self) only be reversed.
-  // 1, n, ..., 5, 4, 3, 2
-  p->next = next;
-  next = p;
-  return this;
-}
-
-unsigned int OCVariant::size()
-{
-  unsigned int c = 1; // for self
-  for(OCVariant *p = next; p; p = p->next){
-    c++;
-  }
-  return c;
-}
-
 void OCVariant::checkOLEresult(string msg)
 {
   // bug ? comment (see old ole32core.cpp project)
@@ -347,21 +317,22 @@ void OCVariant::checkOLEresult(string msg)
 
 // AutoWrap() - Automation helper function...
 HRESULT OCVariant::AutoWrap(int autoType, VARIANT *pvResult,
-  LPOLESTR ptName, OCVariant *argchain)
+  LPOLESTR ptName, OCVariant *argchain, unsigned argLen)
 {
   // bug ? comment (see old ole32core.cpp project)
   // execute at the first time to safety free argchain
   // Allocate memory for arguments...
-  unsigned int size = argchain ? argchain->size() : 0;
+  unsigned int size = argchain ? argLen : 0;
   VARIANT *pArgs = new VARIANT[size];
-  OCVariant *p = argchain;
-  for(unsigned int i = 0; p; i++, p = p->next){
+  for (unsigned int i = 0; i < size;  i++) {
     // bug ? comment (see old ole32core.cpp project)
     // will be reallocated BSTR whein using VariantCopy() (see by debugger)
+    OCVariant *p = &argchain[i];
     VariantInit(&pArgs[i]); // It will be free before copy.
     VariantCopy(&pArgs[i], &p->v);
+    delete p;
   }
-  if(argchain) delete argchain;
+  if(argchain) delete [] argchain;
   // bug ? comment (see old ole32core.cpp project)
   // unexpected free original BSTR
   HRESULT hr = NULL;
@@ -422,29 +393,29 @@ HRESULT OCVariant::AutoWrap(int autoType, VARIANT *pvResult,
   return hr;
 }
 
-OCVariant *OCVariant::getProp(LPOLESTR prop, OCVariant *argchain)
+OCVariant *OCVariant::getProp(LPOLESTR prop, OCVariant *argchain, unsigned argLen)
 {
   OCVariant *r = new OCVariant();
-  AutoWrap(DISPATCH_PROPERTYGET, &r->v, prop, argchain); // distinguish METHOD
+  AutoWrap(DISPATCH_PROPERTYGET, &r->v, prop, argchain, argLen); // distinguish METHOD
   return r; // may be called with DISPATCH_PROPERTYGET|DISPATCH_METHOD
   // 'METHOD' may be called only with DISPATCH_PROPERTYGET
   // but 'PROPERTY' must not be called only with DISPATCH_METHOD
 }
 
-OCVariant *OCVariant::putProp(LPOLESTR prop, OCVariant *argchain)
+OCVariant *OCVariant::putProp(LPOLESTR prop, OCVariant *argchain, unsigned argLen)
 {
-  AutoWrap(DISPATCH_PROPERTYPUT, NULL, prop, argchain);
+  AutoWrap(DISPATCH_PROPERTYPUT, NULL, prop, argchain, argLen);
   return this;
 }
 
-OCVariant *OCVariant::invoke(LPOLESTR method, OCVariant *argchain, bool re)
+OCVariant *OCVariant::invoke(LPOLESTR method, OCVariant *argchain, unsigned argLen, bool re)
 {
   if(!re){
-    AutoWrap(DISPATCH_METHOD, NULL, method, argchain);
+    AutoWrap(DISPATCH_METHOD, NULL, method, argchain, argLen);
     return this;
   }else{
     OCVariant *r = new OCVariant();
-    AutoWrap(DISPATCH_METHOD | DISPATCH_PROPERTYGET, &r->v, method, argchain);
+    AutoWrap(DISPATCH_METHOD | DISPATCH_PROPERTYGET, &r->v, method, argchain, argLen);
     return r; // may be called with DISPATCH_PROPERTYGET|DISPATCH_METHOD
     // 'METHOD' may be called only with DISPATCH_PROPERTYGET
     // but 'PROPERTY' must not be called only with DISPATCH_METHOD
