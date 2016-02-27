@@ -32,7 +32,7 @@ void V8Variant::Init(Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE target)
 {
   Nan::HandleScope scope;
   Local<FunctionTemplate> t = Nan::New<FunctionTemplate>(New);
-  t->InstanceTemplate()->SetInternalFieldCount(2);
+  t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(Nan::New("V8Variant").ToLocalChecked());
   Nan::SetPrototypeMethod(t, "isA", OLEIsA);
   Nan::SetPrototypeMethod(t, "vtName", OLEVTName);
@@ -154,14 +154,14 @@ OCVariant *V8Variant::CreateOCVariant(Handle<Value> v)
     std::cerr << "[Object (test)]" << std::endl;
     std::cerr.flush();
 #endif
-    OCVariant *ocv = castedInternalField<OCVariant>(v->ToObject());
-    if(!ocv){
-      std::cerr << "[Object may not be valid (null OCVariant)]" << std::endl;
+    V8Variant *v8v = V8Variant::Unwrap<V8Variant>(v->ToObject());
+    if(!v8v){
+      std::cerr << "[Object may not be valid (null V8Variant)]" << std::endl;
       std::cerr.flush();
       return NULL;
     }
     // std::cerr << ocv->v.vt;
-    return new OCVariant(*ocv);
+    return new OCVariant(v8v->ocv);
   }else{
     std::cerr << "[unknown type (not implemented now)]" << std::endl;
     std::cerr.flush();
@@ -173,31 +173,31 @@ done:
 NAN_METHOD(V8Variant::OLEIsA)
 {
   DISPFUNCIN();
-  OCVariant *ocv = castedInternalField<OCVariant>(info.This());
-  CHECK_OCV(ocv);
+  V8Variant *v8v = V8Variant::Unwrap<V8Variant>(info.This());
+  CHECK_V8V(v8v);
   DISPFUNCOUT();
-  return info.GetReturnValue().Set(Nan::New(ocv->v.vt));
+  return info.GetReturnValue().Set(Nan::New(v8v->ocv.v.vt));
 }
 
 NAN_METHOD(V8Variant::OLEVTName)
 {
   DISPFUNCIN();
-  OCVariant *ocv = castedInternalField<OCVariant>(info.This());
-  CHECK_OCV(ocv);
+  V8Variant *v8v = V8Variant::Unwrap<V8Variant>(info.This());
+  CHECK_V8V(v8v);
   Local<Object> target = Nan::New(module_target);
   Array *a = Array::Cast(*(GET_PROP(target, "vt_names").ToLocalChecked()));
   DISPFUNCOUT();
-  return info.GetReturnValue().Set(ARRAY_AT(a, ocv->v.vt));
+  return info.GetReturnValue().Set(ARRAY_AT(a, v8v->ocv.v.vt));
 }
 
 NAN_METHOD(V8Variant::OLEBoolean)
 {
   DISPFUNCIN();
-  OCVariant *ocv = castedInternalField<OCVariant>(info.This());
-  CHECK_OCV(ocv);
-  if(ocv->v.vt != VT_BOOL)
+  V8Variant *v8v = V8Variant::Unwrap<V8Variant>(info.This());
+  CHECK_V8V(v8v);
+  if(v8v->ocv.v.vt != VT_BOOL)
     return Nan::ThrowTypeError("OLEBoolean source type OCVariant is not VT_BOOL");
-  bool c_boolVal = ocv->v.boolVal == VARIANT_FALSE ? 0 : !0;
+  bool c_boolVal = v8v->ocv.v.boolVal == VARIANT_FALSE ? 0 : !0;
   DISPFUNCOUT();
   return info.GetReturnValue().Set(c_boolVal);
 }
@@ -205,46 +205,50 @@ NAN_METHOD(V8Variant::OLEBoolean)
 NAN_METHOD(V8Variant::OLEInt32)
 {
   DISPFUNCIN();
-  OCVariant *ocv = castedInternalField<OCVariant>(info.This());
-  CHECK_OCV(ocv);
-  if(ocv->v.vt != VT_I4 && ocv->v.vt != VT_INT
-  && ocv->v.vt != VT_UI4 && ocv->v.vt != VT_UINT)
+  V8Variant *v8v = V8Variant::Unwrap<V8Variant>(info.This());
+  CHECK_V8V(v8v);
+  VARIANT& v = v8v->ocv.v;
+  if(v.vt != VT_I4 && v.vt != VT_INT
+  && v.vt != VT_UI4 && v.vt != VT_UINT)
     return Nan::ThrowTypeError("OLEInt32 source type OCVariant is not VT_I4 nor VT_INT nor VT_UI4 nor VT_UINT");
   DISPFUNCOUT();
-  return info.GetReturnValue().Set(Nan::New(ocv->v.lVal));
+  return info.GetReturnValue().Set(Nan::New(v.lVal));
 }
 
 NAN_METHOD(V8Variant::OLEInt64)
 {
   DISPFUNCIN();
-  OCVariant *ocv = castedInternalField<OCVariant>(info.This());
-  CHECK_OCV(ocv);
-  if(ocv->v.vt != VT_I8 && ocv->v.vt != VT_UI8)
+  V8Variant *v8v = V8Variant::Unwrap<V8Variant>(info.This());
+  CHECK_V8V(v8v);
+  VARIANT& v = v8v->ocv.v;
+  if(v.vt != VT_I8 && v.vt != VT_UI8)
     return Nan::ThrowTypeError("OLEInt64 source type OCVariant is not VT_I8 nor VT_UI8");
   DISPFUNCOUT();
-  return info.GetReturnValue().Set(Nan::New<Number>(ocv->v.llVal));
+  return info.GetReturnValue().Set(Nan::New<Number>(double(v.llVal)));
 }
 
 NAN_METHOD(V8Variant::OLENumber)
 {
   DISPFUNCIN();
-  OCVariant *ocv = castedInternalField<OCVariant>(info.This());
-  CHECK_OCV(ocv);
-  if(ocv->v.vt != VT_R8)
+  V8Variant *v8v = V8Variant::Unwrap<V8Variant>(info.This());
+  CHECK_V8V(v8v);
+  VARIANT& v = v8v->ocv.v;
+  if(v.vt != VT_R8)
     return Nan::ThrowTypeError("OLENumber source type OCVariant is not VT_R8");
   DISPFUNCOUT();
-  return info.GetReturnValue().Set(Nan::New(ocv->v.dblVal));
+  return info.GetReturnValue().Set(Nan::New(v.dblVal));
 }
 
 NAN_METHOD(V8Variant::OLEDate)
 {
   DISPFUNCIN();
-  OCVariant *ocv = castedInternalField<OCVariant>(info.This());
-  CHECK_OCV(ocv);
-  if(ocv->v.vt != VT_DATE)
+  V8Variant *v8v = V8Variant::Unwrap<V8Variant>(info.This());
+  CHECK_V8V(v8v);
+  VARIANT& v = v8v->ocv.v;
+  if(v.vt != VT_DATE)
     return Nan::ThrowTypeError("OLEDate source type OCVariant is not VT_DATE");
   SYSTEMTIME syst;
-  VariantTimeToSystemTime(ocv->v.date, &syst);
+  VariantTimeToSystemTime(v.date, &syst);
   struct tm t = {0}; // set t.tm_isdst = 0
   t.tm_year = syst.wYear - 1900;
   t.tm_mon = syst.wMonth - 1;
@@ -253,20 +257,21 @@ NAN_METHOD(V8Variant::OLEDate)
   t.tm_min = syst.wMinute;
   t.tm_sec = syst.wSecond;
   DISPFUNCOUT();
-  return info.GetReturnValue().Set(Nan::New<Date>(mktime(&t) * 1000LL + syst.wMilliseconds).ToLocalChecked());
+  return info.GetReturnValue().Set(Nan::New<Date>(mktime(&t) * 1000.0 + syst.wMilliseconds).ToLocalChecked());
 }
 
 NAN_METHOD(V8Variant::OLEUtf8)
 {
   DISPFUNCIN();
-  OCVariant *ocv = castedInternalField<OCVariant>(info.This());
-  CHECK_OCV(ocv);
-  if(ocv->v.vt != VT_BSTR)
+  V8Variant *v8v = V8Variant::Unwrap<V8Variant>(info.This());
+  CHECK_V8V(v8v);
+  VARIANT& v = v8v->ocv.v;
+  if(v.vt != VT_BSTR)
     return Nan::ThrowTypeError("OLEUtf8 source type OCVariant is not VT_BSTR");
   Handle<Value> result;
-  if(!ocv->v.bstrVal) result = Nan::Undefined(); // or Null();
+  if(!v.bstrVal) result = Nan::Undefined(); // or Null();
   else {
-    std::wstring wstr(ocv->v.bstrVal);
+    std::wstring wstr(v.bstrVal);
     char *cs = wcs2u8s(wstr.c_str());
     result = Nan::New(cs).ToLocalChecked();
     free(cs);
@@ -284,32 +289,33 @@ NAN_METHOD(V8Variant::OLEValue)
   OLE_PROCESS_CARRY_OVER(thisObject);
   OLETRACEVT(thisObject);
   OLETRACEFLUSH();
-  OCVariant *ocv = castedInternalField<OCVariant>(thisObject);
-  if(!ocv){ std::cerr << "ocv is null"; std::cerr.flush(); }
-  CHECK_OCV(ocv);
-  if(ocv->v.vt == VT_EMPTY) ; // do nothing
-  else if (ocv->v.vt == VT_NULL) {
+  V8Variant *v8v = V8Variant::Unwrap<V8Variant>(info.This());
+  if (!v8v) { std::cerr << "v8v is null"; std::cerr.flush(); }
+  CHECK_V8V(v8v);
+  VARIANT& v = v8v->ocv.v;
+  if(v.vt == VT_EMPTY) ; // do nothing
+  else if (v.vt == VT_NULL) {
     return info.GetReturnValue().SetNull();
   }
-  else if (ocv->v.vt == VT_DISPATCH) {
-    if (ocv->v.pdispVal == NULL) {
+  else if (v.vt == VT_DISPATCH) {
+    if (v.pdispVal == NULL) {
       return info.GetReturnValue().SetNull();
     }
     return info.GetReturnValue().Set(thisObject); // through it
   }
-  else if(ocv->v.vt == VT_BOOL) OLEBoolean(info);
-  else if(ocv->v.vt == VT_I4 || ocv->v.vt == VT_INT
-  || ocv->v.vt == VT_UI4 || ocv->v.vt == VT_UINT) OLEInt32(info);
-  else if(ocv->v.vt == VT_I8 || ocv->v.vt == VT_UI8) OLEInt64(info);
-  else if(ocv->v.vt == VT_R8) OLENumber(info);
-  else if(ocv->v.vt == VT_DATE) OLEDate(info);
-  else if(ocv->v.vt == VT_BSTR) OLEUtf8(info);
-  else if(ocv->v.vt == VT_ARRAY || ocv->v.vt == VT_SAFEARRAY){
+  else if(v.vt == VT_BOOL) OLEBoolean(info);
+  else if(v.vt == VT_I4 || v.vt == VT_INT
+  || v.vt == VT_UI4 || v.vt == VT_UINT) OLEInt32(info);
+  else if(v.vt == VT_I8 || v.vt == VT_UI8) OLEInt64(info);
+  else if(v.vt == VT_R8) OLENumber(info);
+  else if(v.vt == VT_DATE) OLEDate(info);
+  else if(v.vt == VT_BSTR) OLEUtf8(info);
+  else if(v.vt == VT_ARRAY || v.vt == VT_SAFEARRAY){
     std::cerr << "[Array (not implemented now)]" << std::endl;
     std::cerr.flush();
   }else{
     Handle<Value> s = INSTANCE_CALL(thisObject, "vtName", 0, NULL);
-    std::cerr << "[unknown type " << ocv->v.vt << ":" << *String::Utf8Value(s);
+    std::cerr << "[unknown type " << v.vt << ":" << *String::Utf8Value(s);
     std::cerr << " (not implemented now)]" << std::endl;
     std::cerr.flush();
   }
@@ -336,10 +342,11 @@ NAN_METHOD(V8Variant::OLEPrimitiveValue) {
   OLE_PROCESS_CARRY_OVER(thisObject);
   OLETRACEVT(thisObject);
   OLETRACEFLUSH();
-  OCVariant *ocv = castedInternalField<OCVariant>(thisObject);
-  CHECK_OCV(ocv);
-  if (ocv->v.vt == VT_DISPATCH) {
-    IDispatch *dispatch = ocv->v.pdispVal;
+  V8Variant *v8v = V8Variant::Unwrap<V8Variant>(info.This());
+  CHECK_V8V(v8v);
+  VARIANT& v = v8v->ocv.v;
+  if (v.vt == VT_DISPATCH) {
+    IDispatch *dispatch = v.pdispVal;
     if (dispatch == NULL) {
       return info.GetReturnValue().SetNull();
     }
@@ -385,14 +392,10 @@ NAN_METHOD(V8Variant::New)
   DISPFUNCIN();
   if(!info.IsConstructCall())
     return Nan::ThrowTypeError("Use the new operator to create new V8Variant objects");
-  OCVariant *ocv = new OCVariant();
-  CHECK_OCV(ocv);
   Local<Object> thisObject = info.This();
   V8Variant *v = new V8Variant(); // must catch exception
+  CHECK_V8V(v);
   v->Wrap(thisObject); // InternalField[0]
-  thisObject->SetInternalField(1, ExternalNew(ocv));
-  Nan::Persistent<Object> permObj(info.This());
-  permObj.SetWeak(ocv, Dispose, Nan::WeakCallbackType::kParameter);
   DISPFUNCOUT();
   return info.GetReturnValue().Set(info.This());
 }
@@ -420,9 +423,9 @@ Handle<Value> V8Variant::OLEFlushCarryOver(Handle<Value> v)
     result = INSTANCE_CALL(v->ToObject(), "call", argc, argv);
     OCVariant *rv = V8Variant::CreateOCVariant(result);
 	CHECK_OCV_UNDEFINED(rv);
-    OCVariant *o = castedInternalField<OCVariant>(v->ToObject());
-	CHECK_OCV_UNDEFINED(o);
-    *o = *rv; // copy and don't delete rv
+    V8Variant *o = V8Variant::Unwrap<V8Variant>(v->ToObject());
+	CHECK_V8V_UNDEFINED(o);
+    o->ocv = *rv; // copy and don't delete rv
   }
   OLETRACEOUT();
   return result;
@@ -435,14 +438,14 @@ NAN_METHOD(OLEInvoke)
   OLETRACEVT(info.This());
   OLETRACEARGS();
   OLETRACEFLUSH();
-  OCVariant *ocv = castedInternalField<OCVariant>(info.This());
-  CHECK_OCV(ocv);
+  V8Variant *v8v = V8Variant::Unwrap<V8Variant>(info.This());
+  CHECK_V8V(v8v);
   Handle<Value> av0, av1;
   CHECK_OLE_ARGS(info, 1, av0, av1);
   Array *a = Array::Cast(*av1);
   uint32_t argLen = a->Length();
-  OCVariant *argchain = argLen ? new OCVariant[argLen] : NULL;
-  for(size_t i = 0; i < argLen; ++i){
+  OCVariant **argchain = argLen ? (OCVariant**)alloca(sizeof(OCVariant*)*argLen) : NULL;
+  for(uint32_t i = 0; i < argLen; ++i){
     OCVariant *o = V8Variant::CreateOCVariant(ARRAY_AT(a, i));
     CHECK_OCV(o);
     argchain[argLen - i - 1] = o; // why is this backwards? I'm copying the original intent(?) until I can test this
@@ -454,11 +457,11 @@ NAN_METHOD(OLEInvoke)
   BEVERIFY(done, wcs);
   try{
     OCVariant *rv = isCall ? // argchain will be deleted automatically
-      ocv->invoke(wcs, argchain, argLen, true) : ocv->getProp(wcs, argchain, argLen);
+      v8v->ocv.invoke(wcs, argchain, argLen, true) : v8v->ocv.getProp(wcs, argchain, argLen);
     if(rv){
-      OCVariant *o = castedInternalField<OCVariant>(vResult);
-      CHECK_OCV(o);
-      *o = *rv; // copy and don't delete rv
+      V8Variant *o = V8Variant::Unwrap<V8Variant>(vResult);
+      CHECK_V8V(o);
+      o->ocv = *rv; // copy and don't delete rv
     }
   }catch(OLE32coreException e){ std::cerr << e.errorMessage(*u8s); goto done;
   }catch(char *e){ std::cerr << e << *u8s << std::endl; goto done;
@@ -501,8 +504,8 @@ NAN_METHOD(V8Variant::OLESet)
   OLETRACEFLUSH();
   Local<Object> thisObject = info.This();
   OLE_PROCESS_CARRY_OVER(thisObject);
-  OCVariant *ocv = castedInternalField<OCVariant>(thisObject);
-  CHECK_OCV(ocv);
+  V8Variant *v8v = V8Variant::Unwrap<V8Variant>(info.This());
+  CHECK_V8V(v8v);
   Handle<Value> av0, av1;
   CHECK_OLE_ARGS(info, 2, av0, av1);
   OCVariant *argchain = V8Variant::CreateOCVariant(av1);
@@ -513,7 +516,7 @@ NAN_METHOD(V8Variant::OLESet)
   wchar_t *wcs = u8s2wcs(*u8s);
   BEVERIFY(done, wcs);
   try{
-    ocv->putProp(wcs, argchain); // argchain will be deleted automatically
+    v8v->ocv.putProp(wcs, &argchain, 1); // argchain will be deleted automatically
   }catch(OLE32coreException e){ std::cerr << e.errorMessage(*u8s); goto done;
   }catch(char *e){ std::cerr << e << *u8s << std::endl; goto done;
   }
@@ -647,9 +650,9 @@ NAN_PROPERTY_GETTER(V8Variant::OLEGetAttr)
     Handle<Object> vResult = V8Variant::CreateUndefined(); // uses much memory
     OCVariant *rv = V8Variant::CreateOCVariant(thisObject);
     CHECK_OCV(rv);
-    OCVariant *o = castedInternalField<OCVariant>(vResult);
-    CHECK_OCV(o);
-    *o = *rv; // copy and don't delete rv
+    V8Variant *o = V8Variant::Unwrap<V8Variant>(vResult);
+    CHECK_V8V(o);
+    o->ocv = *rv; // copy and don't delete rv
     V8Variant *v8v = node::ObjectWrap::Unwrap<V8Variant>(vResult);
     v8v->property_carryover.assign(*u8name);
     OLETRACEPREARGV(property);
@@ -683,51 +686,19 @@ NAN_METHOD(V8Variant::Finalize)
   std::cerr << __FUNCTION__ << " Finalizer is called\a" << std::endl;
   std::cerr.flush();
 #endif
-  Local<Object> thisObject = info.This();
-#if(0)
-  V8Variant *v = node::ObjectWrap::Unwrap<V8Variant>(thisObject);
-  if(v) delete v; // it has been already deleted ?
-  thisObject->SetInternalField(0, External::New(NULL));
-#endif
-#if(1) // now GC will call Disposer automatically
-  OCVariant *ocv = castedInternalField<OCVariant>(thisObject);
-  if(ocv) delete ocv;
-#endif
-  thisObject->SetInternalField(1, ExternalNew(NULL));
+  V8Variant *v = node::ObjectWrap::Unwrap<V8Variant>(info.This());
+  if(v) v->Finalize();
   DISPFUNCOUT();
   return info.GetReturnValue().Set(info.This());
 }
 
-void V8Variant::Dispose(const Nan::WeakCallbackInfo<OCVariant> &data)
-{
-  DISPFUNCIN();
-#if(0)
-//  std::cerr << __FUNCTION__ << " Disposer is called\a" << std::endl;
-  std::cerr << __FUNCTION__ << " Disposer is called" << std::endl;
-  std::cerr.flush();
-#endif
-#if(0) // it has been already deleted ?
-  OCVariant *p = castedInternalField<OCVariant>(data.getInternalField(1));
-  if(!p){
-    std::cerr << __FUNCTION__;
-    std::cerr << "InternalField[1] has been already deleted" << std::endl;
-    std::cerr.flush();
-  }
-#endif
-//  else{
-    OCVariant *ocv = data.GetParameter(); // ocv may be same as p
-    if(ocv) delete ocv;
-//  }
-//  BEVERIFY(done, data.InternalFieldCount() > 1);
-//  data.SetInternalField(1, ExternalNew(NULL));
-//done:
-  DISPFUNCOUT();
-}
-
 void V8Variant::Finalize()
 {
-  assert(!finalized);
-  finalized = true;
+  if(!finalized)
+  {
+    ocv.Clear();
+    finalized = true;
+  }
 }
 
 } // namespace node_win32ole

@@ -11,6 +11,7 @@
 #include "v8variant.h"
 
 using namespace v8;
+using namespace ole32core;
 
 namespace node_win32ole {
 

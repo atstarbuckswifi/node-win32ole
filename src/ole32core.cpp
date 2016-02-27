@@ -309,6 +309,13 @@ OCVariant::~OCVariant()
   DISPFUNCOUT();
 }
 
+void OCVariant::Clear()
+{
+  DISPFUNCIN();
+  VariantClear(&v);
+  DISPFUNCOUT();
+}
+
 void OCVariant::checkOLEresult(string msg)
 {
   // bug ? comment (see old ole32core.cpp project)
@@ -317,7 +324,7 @@ void OCVariant::checkOLEresult(string msg)
 
 // AutoWrap() - Automation helper function...
 HRESULT OCVariant::AutoWrap(int autoType, VARIANT *pvResult,
-  LPOLESTR ptName, OCVariant *argchain, unsigned argLen)
+  LPOLESTR ptName, OCVariant **argchain, unsigned argLen)
 {
   // bug ? comment (see old ole32core.cpp project)
   // execute at the first time to safety free argchain
@@ -327,12 +334,11 @@ HRESULT OCVariant::AutoWrap(int autoType, VARIANT *pvResult,
   for (unsigned int i = 0; i < size;  i++) {
     // bug ? comment (see old ole32core.cpp project)
     // will be reallocated BSTR whein using VariantCopy() (see by debugger)
-    OCVariant *p = &argchain[i];
+    OCVariant *p = argchain[i];
     VariantInit(&pArgs[i]); // It will be free before copy.
     VariantCopy(&pArgs[i], &p->v);
     delete p;
   }
-  if(argchain) delete [] argchain;
   // bug ? comment (see old ole32core.cpp project)
   // unexpected free original BSTR
   HRESULT hr = NULL;
@@ -393,7 +399,7 @@ HRESULT OCVariant::AutoWrap(int autoType, VARIANT *pvResult,
   return hr;
 }
 
-OCVariant *OCVariant::getProp(LPOLESTR prop, OCVariant *argchain, unsigned argLen)
+OCVariant *OCVariant::getProp(LPOLESTR prop, OCVariant **argchain, unsigned argLen)
 {
   OCVariant *r = new OCVariant();
   AutoWrap(DISPATCH_PROPERTYGET, &r->v, prop, argchain, argLen); // distinguish METHOD
@@ -402,13 +408,13 @@ OCVariant *OCVariant::getProp(LPOLESTR prop, OCVariant *argchain, unsigned argLe
   // but 'PROPERTY' must not be called only with DISPATCH_METHOD
 }
 
-OCVariant *OCVariant::putProp(LPOLESTR prop, OCVariant *argchain, unsigned argLen)
+OCVariant *OCVariant::putProp(LPOLESTR prop, OCVariant **argchain, unsigned argLen)
 {
   AutoWrap(DISPATCH_PROPERTYPUT, NULL, prop, argchain, argLen);
   return this;
 }
 
-OCVariant *OCVariant::invoke(LPOLESTR method, OCVariant *argchain, unsigned argLen, bool re)
+OCVariant *OCVariant::invoke(LPOLESTR method, OCVariant **argchain, unsigned argLen, bool re)
 {
   if(!re){
     AutoWrap(DISPATCH_METHOD, NULL, method, argchain, argLen);

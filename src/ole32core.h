@@ -88,13 +88,14 @@ public:
   OCVariant(std::string str); // allocate and convert to VT_BSTR
   virtual ~OCVariant();
   void checkOLEresult(std::string msg);
+  void Clear();
 protected:
   HRESULT AutoWrap(int autoType, VARIANT *pvResult,
-    LPOLESTR ptName, OCVariant *argchain=NULL, unsigned argLen = 0);
+    LPOLESTR ptName, OCVariant **argchain=NULL, unsigned argLen = 0);
 public:
-  OCVariant *getProp(LPOLESTR prop, OCVariant *argchain=NULL, unsigned argLen=0);
-  OCVariant *putProp(LPOLESTR prop, OCVariant *argchain=NULL, unsigned argLen = 0);
-  OCVariant *invoke(LPOLESTR method, OCVariant *argchain=NULL, unsigned argLen = 0, bool re=false);
+  OCVariant *getProp(LPOLESTR prop, OCVariant **argchain=NULL, unsigned argLen=0);
+  OCVariant *putProp(LPOLESTR prop, OCVariant **argchain=NULL, unsigned argLen = 0);
+  OCVariant *invoke(LPOLESTR method, OCVariant **argchain=NULL, unsigned argLen = 0, bool re=false);
 };
 
 class OLE32core {

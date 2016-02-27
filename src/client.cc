@@ -88,8 +88,9 @@ NAN_METHOD(Client::Dispatch)
   BEVERIFY(done, !vApp.IsEmpty());
   BEVERIFY(done, !vApp->IsUndefined());
   BEVERIFY(done, vApp->IsObject());
-  OCVariant *app = castedInternalField<OCVariant>(vApp);
-  CHECK_OCV(app);
+  V8Variant *v8v = V8Variant::Unwrap<V8Variant>(vApp);
+  CHECK_V8V(v8v);
+  OCVariant *app = &v8v->ocv;
   app->v.vt = VT_DISPATCH;
   // When 'CoInitialize(NULL)' is not called first (and on the same instance),
   // next functions will return many errors.

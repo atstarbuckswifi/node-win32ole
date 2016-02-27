@@ -20,20 +20,32 @@ namespace node_win32ole {
       return Nan::Undefined(); \
   }while(0)
 
+#define CHECK_V8V(v8v) do{ \
+    if(!(v8v)) \
+      return Nan::ThrowTypeError( __FUNCTION__" can't access to V8Variant"); \
+  }while(0)
+#define CHECK_V8V_UNDEFINED(v8v) do{ \
+    if(!(v8v)) \
+      Nan::ThrowTypeError( __FUNCTION__" can't access to V8Variant"); \
+      return Nan::Undefined(); \
+  }while(0)
+
 #if(DEBUG)
 #define OLETRACEIN() BDISPFUNCIN()
 #define OLETRACEVT(th) do{ \
-    OCVariant *ocv = castedInternalField<OCVariant>(th); \
-    if(!ocv){ std::cerr << "*** OCVariant is NULL ***"; std::cerr.flush(); } \
-    CHECK_OCV(ocv); \
+    V8Variant *v8v = V8Variant::Unwrap<V8Variant>(th); \
+    if(!v8v){ std::cerr << "*** V8Variant is NULL ***"; std::cerr.flush(); } \
+    CHECK_V8V(v8v); \
+    OCVariant *ocv = &v8v->ocv; \
     std::cerr << "0x" << std::setw(8) << std::left << std::hex << ocv << ":"; \
     std::cerr << "vt=" << ocv->v.vt << ":"; \
     std::cerr.flush(); \
   }while(0)
 #define OLETRACEVT_UNDEFINED(th) do{ \
-    OCVariant *ocv = castedInternalField<OCVariant>(th); \
-    if(!ocv){ std::cerr << "*** OCVariant is NULL ***"; std::cerr.flush(); } \
-    CHECK_OCV_UNDEFINED(ocv); \
+    V8Variant *v8v = V8Variant::Unwrap<V8Variant>(th); \
+    if(!v8v){ std::cerr << "*** V8Variant is NULL ***"; std::cerr.flush(); } \
+    CHECK_V8V_UNDEFINED(v8v); \
+    OCVariant *ocv = &v8v->ocv; \
     std::cerr << "0x" << std::setw(8) << std::left << std::hex << ocv << ":"; \
     std::cerr << "vt=" << ocv->v.vt << ":"; \
     std::cerr.flush(); \
@@ -66,6 +78,7 @@ namespace node_win32ole {
 #else
 #define OLETRACEIN()
 #define OLETRACEVT(th)
+#define OLETRACEVT_UNDEFINED(th)
 #define OLETRACEARG(v)
 #define OLETRACEPREARGV(sargs)
 #define OLETRACEARGV()
@@ -89,12 +102,6 @@ namespace node_win32ole {
 
 #define INSTANCE_CALL(obj, method, argc, argv) Handle<Function>::Cast( \
   GET_PROP((obj), (method)).ToLocalChecked())->Call((obj), (argc), (argv))
-
-template <class T> T *castedInternalField(Handle<Object> object, int fidx=1)
-{
-  return static_cast<T *>(
-    Local<External>::Cast(object->GetInternalField(fidx))->Value());
-}
 
 extern Nan::Persistent<Object> module_target;
 

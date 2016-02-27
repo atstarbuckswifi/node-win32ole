@@ -15,7 +15,7 @@ public:
   static NAN_METHOD(Dispatch);
   static NAN_METHOD(Finalize);
 public:
-  Client() : node::ObjectWrap(), finalized(false) {}
+  Client() : finalized(false) {}
   ~Client() { if(!finalized) Finalize(); }
 protected:
   void Finalize();

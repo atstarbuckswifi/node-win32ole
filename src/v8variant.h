@@ -6,14 +6,7 @@
 #include "node_win32ole.h"
 #include "ole32core.h"
 
-using namespace ole32core;
-namespace ole32core {
-  class OCVariant;
-}
-
 namespace node_win32ole {
-
-#define ExternalNew(x) Nan::New<External>((void*)(x))
 
 typedef struct _fundamental_attr {
   bool obsoleted;
@@ -26,7 +19,7 @@ public:
   static Nan::Persistent<FunctionTemplate> clazz;
   static void Init(Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE target);
   static std::string CreateStdStringMBCSfromUTF8(Handle<Value> v); // *** p.
-  static OCVariant *CreateOCVariant(Handle<Value> v); // *** private
+  static ole32core::OCVariant *CreateOCVariant(Handle<Value> v); // *** private
   static NAN_METHOD(OLEIsA);
   static NAN_METHOD(OLEVTName);
   static NAN_METHOD(OLEBoolean); // *** p.
@@ -48,8 +41,9 @@ public:
   static NAN_PROPERTY_SETTER(OLESetAttr);
   static NAN_METHOD(Finalize);
 public:
-  V8Variant() : node::ObjectWrap(), finalized(false), property_carryover() {}
+  V8Variant() : finalized(false), property_carryover() {}
   ~V8Variant() { if(!finalized) Finalize(); }
+  ole32core::OCVariant ocv;
 protected:
   static void Dispose(const Nan::WeakCallbackInfo<ole32core::OCVariant> &data);
   void Finalize();
