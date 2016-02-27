@@ -175,11 +175,10 @@ BSTR MBCS2BSTR(string str)
 {
   BSTR bstr;
   size_t len = str.length();
-  WCHAR *wbuf = new WCHAR[len + 1];
+  WCHAR *wbuf = (WCHAR*)alloca((len + 1) * sizeof(WCHAR));
   mbstowcs(wbuf, str.c_str(), len);
   wbuf[len] = L'\0';
   bstr = ::SysAllocString(wbuf);
-  delete [] wbuf;
   return bstr;
 }
 
@@ -188,12 +187,11 @@ BSTR MBCS2BSTR(string str)
 string BSTR2MBCS(BSTR bstr)
 {
   string str;
-  int len = ::SysStringLen(bstr) * 2;
-  char *buf = new char[len + 1];
+  int len = ::SysStringLen(bstr);
+  char *buf = (char*)alloca((len + 1) * sizeof(char));
   wcstombs(buf, bstr, len);
   buf[len] = '\0';
   str = buf;
-  delete [] buf;
   return str;
 }
 
@@ -283,27 +281,20 @@ OCVariant::OCVariant(string str)
   DISPFUNCOUT();
 }
 
+OCVariant& OCVariant::operator=(const OCVariant& other)
+{
+  DISPFUNCIN();
+  VariantCopy(&v, (VARIANT *)&other.v);
+  DISPFUNCDAT("--assignment-- %08p %08lx\n", &v, v.vt);
+  DISPFUNCOUT();
+  return *this;
+}
+
 OCVariant::~OCVariant()
 {
   DISPFUNCIN();
   DISPFUNCDAT("--destruction-- %08p %08lx\n", &v, v.vt);
-  DISPFUNCDAT("---(first step in)%d%d", 0, 0);
-
-  // The first node (== self) only be reversed.
-  // 1, n, ..., 5, 4, 3, 2
-  DISPFUNCDAT("---(first step out)%d%d", 0, 0);
   DISPFUNCDAT("---(second step in)%d%d", 0, 0);
-  // bug ? comment (see old ole32core.cpp project)
-  if((v.vt == VT_DISPATCH) && v.pdispVal){ // app
-    v.pdispVal->Release();
-    VariantClear(&v); // need it
-    v.pdispVal = NULL;
-  }
-  if((v.vt == VT_BSTR) && v.bstrVal){
-    ::SysFreeString(v.bstrVal);
-    VariantClear(&v); // need it
-    v.bstrVal = NULL;
-  }
   VariantClear(&v); // need it
   DISPFUNCDAT("---(second step out)%d%d", 0, 0);
   DISPFUNCOUT();
@@ -323,18 +314,17 @@ void OCVariant::checkOLEresult(string msg)
 }
 
 // AutoWrap() - Automation helper function...
-HRESULT OCVariant::AutoWrap(int autoType, VARIANT *pvResult,
-  LPOLESTR ptName, OCVariant **argchain, unsigned argLen)
+HRESULT OCVariant::AutoWrap(int autoType, VARIANT *pvResult, BSTR ptName, OCVariant **argchain, unsigned argLen)
 {
   // bug ? comment (see old ole32core.cpp project)
   // execute at the first time to safety free argchain
   // Allocate memory for arguments...
   unsigned int size = argchain ? argLen : 0;
-  VARIANT *pArgs = new VARIANT[size];
+  VARIANT *pArgs = (VARIANT*)alloca(size * sizeof(VARIANT));
   for (unsigned int i = 0; i < size;  i++) {
     // bug ? comment (see old ole32core.cpp project)
     // will be reallocated BSTR whein using VariantCopy() (see by debugger)
-    OCVariant *p = argchain[i];
+    OCVariant *p = argchain[size - i - 1]; // arguments are passed in reverse order
     VariantInit(&pArgs[i]); // It will be free before copy.
     VariantCopy(&pArgs[i], &p->v);
     delete p;
@@ -375,21 +365,23 @@ HRESULT OCVariant::AutoWrap(int autoType, VARIANT *pvResult,
   // Make the call!
   hr = v.pdispVal->Invoke(dispID, IID_NULL,
     LOCALE_USER_DEFAULT, autoType, &dp, pvResult, &exceptInfo, NULL); // or _SYSTEM_ ?
-  delete [] pArgs;
+  for (unsigned int i = 0; i < size; i++) {
+    VariantClear(&pArgs[i]);
+  }
   if(FAILED(hr)){
 
-	// Convert down to ANSI (for error message only)
-  char szErrSource[256];
-	int sourceLen = WideCharToMultiByte(CP_ACP, 0, exceptInfo.bstrSource, -1, szErrSource, sizeof(szErrSource), NULL, NULL);
-	char szErrDescription[256];
-	int descLen = WideCharToMultiByte(CP_ACP, 0, exceptInfo.bstrDescription, -1, szErrDescription, sizeof(szErrDescription), NULL, NULL);
-  szErrSource[sourceLen] = 0;
-  szErrDescription[descLen] = 0;
-
-	ostringstream oss;
+    // Convert down to ANSI (for error message only)
+    char szErrSource[256];
+    int sourceLen = WideCharToMultiByte(CP_ACP, 0, exceptInfo.bstrSource, -1, szErrSource, sizeof(szErrSource), NULL, NULL);
+    char szErrDescription[256];
+    int descLen = WideCharToMultiByte(CP_ACP, 0, exceptInfo.bstrDescription, -1, szErrDescription, sizeof(szErrDescription), NULL, NULL);
+    szErrSource[sourceLen] = 0;
+    szErrDescription[descLen] = 0;
+    
+    ostringstream oss;
     oss << hr << " [" << szName << "] = [" << dispID << "]\r\n";
-	oss << szErrSource << ": ";
-	oss << szErrDescription << "\r\n";
+    oss << szErrSource << ": ";
+    oss << szErrDescription << "\r\n";
     oss << "(It always seems to be appeared at that time you mistake calling ";
     oss << "'obj.get { ocv->getProp() }' <-> 'obj.call { ocv->invoke() }'.) ";
     oss << "IDispatch::Invoke AutoWrap";
@@ -399,7 +391,7 @@ HRESULT OCVariant::AutoWrap(int autoType, VARIANT *pvResult,
   return hr;
 }
 
-OCVariant *OCVariant::getProp(LPOLESTR prop, OCVariant **argchain, unsigned argLen)
+OCVariant *OCVariant::getProp(BSTR prop, OCVariant **argchain, unsigned argLen)
 {
   OCVariant *r = new OCVariant();
   AutoWrap(DISPATCH_PROPERTYGET, &r->v, prop, argchain, argLen); // distinguish METHOD
@@ -408,13 +400,13 @@ OCVariant *OCVariant::getProp(LPOLESTR prop, OCVariant **argchain, unsigned argL
   // but 'PROPERTY' must not be called only with DISPATCH_METHOD
 }
 
-OCVariant *OCVariant::putProp(LPOLESTR prop, OCVariant **argchain, unsigned argLen)
+OCVariant *OCVariant::putProp(BSTR prop, OCVariant **argchain, unsigned argLen)
 {
   AutoWrap(DISPATCH_PROPERTYPUT, NULL, prop, argchain, argLen);
   return this;
 }
 
-OCVariant *OCVariant::invoke(LPOLESTR method, OCVariant **argchain, unsigned argLen, bool re)
+OCVariant *OCVariant::invoke(BSTR method, OCVariant **argchain, unsigned argLen, bool re)
 {
   if(!re){
     AutoWrap(DISPATCH_METHOD, NULL, method, argchain, argLen);

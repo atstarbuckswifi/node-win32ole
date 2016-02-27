@@ -86,16 +86,16 @@ public:
   OCVariant(double date, bool isdate); // VT_DATE
   OCVariant(BSTR bstrVal); // VT_BSTR (previous allocated)
   OCVariant(std::string str); // allocate and convert to VT_BSTR
+  OCVariant& operator=(const OCVariant& other);
   virtual ~OCVariant();
   void checkOLEresult(std::string msg);
   void Clear();
 protected:
-  HRESULT AutoWrap(int autoType, VARIANT *pvResult,
-    LPOLESTR ptName, OCVariant **argchain=NULL, unsigned argLen = 0);
+  HRESULT AutoWrap(int autoType, VARIANT *pvResult, BSTR ptName, OCVariant **argchain=NULL, unsigned argLen = 0);
 public:
-  OCVariant *getProp(LPOLESTR prop, OCVariant **argchain=NULL, unsigned argLen=0);
-  OCVariant *putProp(LPOLESTR prop, OCVariant **argchain=NULL, unsigned argLen = 0);
-  OCVariant *invoke(LPOLESTR method, OCVariant **argchain=NULL, unsigned argLen = 0, bool re=false);
+  OCVariant *getProp(BSTR prop, OCVariant **argchain=NULL, unsigned argLen=0);
+  OCVariant *putProp(BSTR prop, OCVariant **argchain=NULL, unsigned argLen = 0);
+  OCVariant *invoke(BSTR method, OCVariant **argchain=NULL, unsigned argLen = 0, bool re=false);
 };
 
 class OLE32core {

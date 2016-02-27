@@ -89,7 +89,7 @@ OCVariant *V8Variant::CreateOCVariant(Handle<Value> v)
 {
   if (v->IsNull() || v->IsUndefined()) {
     // todo: make separate undefined type
-		return new OCVariant();
+    return new OCVariant();
   }
 
   BEVERIFY(done, !v.IsEmpty());
@@ -422,10 +422,11 @@ Handle<Value> V8Variant::OLEFlushCarryOver(Handle<Value> v)
     v8v->property_carryover.clear();
     result = INSTANCE_CALL(v->ToObject(), "call", argc, argv);
     OCVariant *rv = V8Variant::CreateOCVariant(result);
-	CHECK_OCV_UNDEFINED(rv);
+    CHECK_OCV_UNDEFINED(rv);
     V8Variant *o = V8Variant::Unwrap<V8Variant>(v->ToObject());
-	CHECK_V8V_UNDEFINED(o);
-    o->ocv = *rv; // copy and don't delete rv
+    CHECK_V8V_UNDEFINED(o);
+    o->ocv = *rv; // copy rv value
+    delete rv;
   }
   OLETRACEOUT();
   return result;
@@ -442,36 +443,37 @@ NAN_METHOD(OLEInvoke)
   CHECK_V8V(v8v);
   Handle<Value> av0, av1;
   CHECK_OLE_ARGS(info, 1, av0, av1);
+  String::Utf8Value u8s(av0);
+  BSTR bName = MBCS2BSTR(*u8s);
+  BEVERIFY(done, bName);
   Array *a = Array::Cast(*av1);
   uint32_t argLen = a->Length();
   OCVariant **argchain = argLen ? (OCVariant**)alloca(sizeof(OCVariant*)*argLen) : NULL;
   for(uint32_t i = 0; i < argLen; ++i){
     OCVariant *o = V8Variant::CreateOCVariant(ARRAY_AT(a, i));
     CHECK_OCV(o);
-    argchain[argLen - i - 1] = o; // why is this backwards? I'm copying the original intent(?) until I can test this
+    argchain[i] = o;
   }
   Handle<Object> vResult = V8Variant::CreateUndefined();
-  String::Utf8Value u8s(av0);
-  wchar_t *wcs = u8s2wcs(*u8s);
-  if(!wcs && argchain) delete argchain;
-  BEVERIFY(done, wcs);
   try{
     OCVariant *rv = isCall ? // argchain will be deleted automatically
-      v8v->ocv.invoke(wcs, argchain, argLen, true) : v8v->ocv.getProp(wcs, argchain, argLen);
+      v8v->ocv.invoke(bName, argchain, argLen, true) : v8v->ocv.getProp(bName, argchain, argLen);
     if(rv){
       V8Variant *o = V8Variant::Unwrap<V8Variant>(vResult);
       CHECK_V8V(o);
-      o->ocv = *rv; // copy and don't delete rv
+      o->ocv = *rv; // copy rv value
+      delete rv;
     }
   }catch(OLE32coreException e){ std::cerr << e.errorMessage(*u8s); goto done;
   }catch(char *e){ std::cerr << e << *u8s << std::endl; goto done;
   }
-  free(wcs); // *** it may leak when error ***
+  ::SysFreeString(bName);
   Handle<Value> result = INSTANCE_CALL(vResult, "toValue", 0, NULL);
   OLETRACEOUT();
   return info.GetReturnValue().Set(result);
   return;
 done:
+  ::SysFreeString(bName);
   OLETRACEOUT();
   return Nan::ThrowTypeError(__FUNCTION__ " failed");
 }
@@ -513,18 +515,19 @@ NAN_METHOD(V8Variant::OLESet)
     return Nan::ThrowTypeError(__FUNCTION__ " the second argument is not valid (null OCVariant)");
   bool result = false;
   String::Utf8Value u8s(av0);
-  wchar_t *wcs = u8s2wcs(*u8s);
-  BEVERIFY(done, wcs);
+  BSTR bName = MBCS2BSTR(*u8s);
+  BEVERIFY(done, bName);
   try{
-    v8v->ocv.putProp(wcs, &argchain, 1); // argchain will be deleted automatically
+    v8v->ocv.putProp(bName, &argchain, 1); // argchain will be deleted automatically
   }catch(OLE32coreException e){ std::cerr << e.errorMessage(*u8s); goto done;
   }catch(char *e){ std::cerr << e << *u8s << std::endl; goto done;
   }
-  free(wcs); // *** it may leak when error ***
+  ::SysFreeString(bName);
   result = true;
   OLETRACEOUT();
   return info.GetReturnValue().Set(result);
 done:
+  ::SysFreeString(bName);
   OLETRACEOUT();
   return Nan::ThrowTypeError(__FUNCTION__ " failed");
 }
@@ -652,7 +655,8 @@ NAN_PROPERTY_GETTER(V8Variant::OLEGetAttr)
     CHECK_OCV(rv);
     V8Variant *o = V8Variant::Unwrap<V8Variant>(vResult);
     CHECK_V8V(o);
-    o->ocv = *rv; // copy and don't delete rv
+    o->ocv = *rv; // copy rv value
+    delete rv;
     V8Variant *v8v = node::ObjectWrap::Unwrap<V8Variant>(vResult);
     v8v->property_carryover.assign(*u8name);
     OLETRACEPREARGV(property);
