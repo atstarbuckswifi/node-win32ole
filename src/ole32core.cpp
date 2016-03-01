@@ -13,19 +13,39 @@ BOOL chkerr(BOOL b, char *m, int n, char *f, char *e)
 {
   if(b) return b;
   DWORD code = GetLastError();
+  std::string msg = errorFromCode(code);
+  fprintf(stderr, "ASSERT in %08x module %s(%d) @%s: %s\n", code, m, n, f, e);
+  // fwprintf(stderr, L"error: %s", buf); // Some wchars can't see on console.
+  fprintf(stderr, "error: %s", msg.c_str());
+  return b;
+}
+
+std::string errorFromCode(DWORD code)
+{
   WCHAR *buf;
-  FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER
+  DWORD len = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER
+      | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+    NULL, code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+    (LPWSTR)&buf, 0, NULL);
+  if (!len) return "";
+  char *mbs = wcs2mbs(buf);
+  LocalFree(buf);
+  std::string msg(mbs);
+  free(mbs);
+  return msg;
+}
+
+std::wstring errorFromCodeW(DWORD code)
+{
+  WCHAR *buf;
+  DWORD len = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER
     | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
     NULL, code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
     (LPWSTR)&buf, 0, NULL);
-  fprintf(stderr, "ASSERT in %08x module %s(%d) @%s: %s\n", code, m, n, f, e);
-  // fwprintf(stderr, L"error: %s", buf); // Some wchars can't see on console.
-  char *mbs = wcs2mbs(buf);
-  if(!mbs) MessageBoxW(NULL, buf, L"error", MB_ICONEXCLAMATION | MB_OK);
-  else fprintf(stderr, "error: %s", mbs);
-  free(mbs);
+  if (!len) return L"";
+  std::wstring msg(buf, len);
   LocalFree(buf);
-  return b;
+  return msg;
 }
 
 string to_s(int num)
@@ -195,7 +215,7 @@ string BSTR2MBCS(BSTR bstr)
   return str;
 }
 
-string OLE32coreException::errorMessage(char *m)
+string OLE32coreException::errorMessage(const char *m)
 {
   ostringstream oss;
   oss << "OLE error: ";
@@ -216,7 +236,7 @@ OCVariant::OCVariant(const OCVariant &s)
 {
   DISPFUNCIN();
   VariantInit(&v); // It will be free before copy.
-  VariantCopy(&v, (VARIANT *)&s.v);
+  VariantCopy(&v, &s.v);
   DISPFUNCDAT("--copy construction-- %08p %08lx\n", &v, v.vt);
   DISPFUNCOUT();
 }
@@ -231,32 +251,22 @@ OCVariant::OCVariant(bool c_boolVal)
   DISPFUNCOUT();
 }
 
-OCVariant::OCVariant(long lVal)
+OCVariant::OCVariant(long lVal, VARTYPE type)
 {
   DISPFUNCIN();
   VariantInit(&v);
-  v.vt = VT_I4;
+  v.vt = type;
   v.lVal = lVal;
   DISPFUNCDAT("--construction-- %08p %08lx\n", &v, v.vt);
   DISPFUNCOUT();
 }
 
-OCVariant::OCVariant(double dblVal)
+OCVariant::OCVariant(double dblVal, VARTYPE type)
 {
   DISPFUNCIN();
   VariantInit(&v);
   v.vt = VT_R8;
   v.dblVal = dblVal;
-  DISPFUNCDAT("--construction-- %08p %08lx\n", &v, v.vt);
-  DISPFUNCOUT();
-}
-
-OCVariant::OCVariant(double date, bool isdate)
-{
-  DISPFUNCIN();
-  VariantInit(&v);
-  v.vt = VT_DATE;
-  v.date = date;
   DISPFUNCDAT("--construction-- %08p %08lx\n", &v, v.vt);
   DISPFUNCOUT();
 }
@@ -277,6 +287,16 @@ OCVariant::OCVariant(string str)
   VariantInit(&v);
   v.vt = VT_BSTR;
   v.bstrVal = MBCS2BSTR(str);
+  DISPFUNCDAT("--construction-- %08p %08lx\n", &v, v.vt);
+  DISPFUNCOUT();
+}
+
+OCVariant::OCVariant(const wchar_t* str)
+{
+  DISPFUNCIN();
+  VariantInit(&v);
+  v.vt = VT_BSTR;
+  v.bstrVal = ::SysAllocString(str);
   DISPFUNCDAT("--construction-- %08p %08lx\n", &v, v.vt);
   DISPFUNCOUT();
 }
@@ -331,19 +351,23 @@ HRESULT OCVariant::AutoWrap(int autoType, VARIANT *pvResult, BSTR ptName, OCVari
   }
   // bug ? comment (see old ole32core.cpp project)
   // unexpected free original BSTR
-  HRESULT hr = NULL;
+  if (v.vt != VT_DISPATCH)
+  {
+    checkOLEresult("Called with a non-object. AutoWrap");
+    return DISP_E_BADVARTYPE;
+  }
   if(!v.pdispVal){
     checkOLEresult("Called with NULL IDispatch. AutoWrap");
-    return hr;
+    return E_POINTER;
   }
   // Convert down to ANSI (for error message only)
   char szName[256];
   WideCharToMultiByte(CP_ACP, 0,
     ptName, -1, szName, sizeof(szName), NULL, NULL);
   // Get DISPID for name passed...
+  HRESULT hr = NULL;
   DISPID dispID;
-  hr = v.pdispVal->GetIDsOfNames(IID_NULL, &ptName, 1,
-    LOCALE_USER_DEFAULT, &dispID); // or _SYSTEM_ ?
+  hr = v.pdispVal->GetIDsOfNames(IID_NULL, &ptName, 1, LOCALE_USER_DEFAULT, &dispID);
   if(FAILED(hr)){
     ostringstream oss;
     oss << hr << " [" << szName << "] ";
@@ -369,19 +393,28 @@ HRESULT OCVariant::AutoWrap(int autoType, VARIANT *pvResult, BSTR ptName, OCVari
     VariantClear(&pArgs[i]);
   }
   if(FAILED(hr)){
-
-    // Convert down to ANSI (for error message only)
-    char szErrSource[256];
-    int sourceLen = WideCharToMultiByte(CP_ACP, 0, exceptInfo.bstrSource, -1, szErrSource, sizeof(szErrSource), NULL, NULL);
-    char szErrDescription[256];
-    int descLen = WideCharToMultiByte(CP_ACP, 0, exceptInfo.bstrDescription, -1, szErrDescription, sizeof(szErrDescription), NULL, NULL);
-    szErrSource[sourceLen] = 0;
-    szErrDescription[descLen] = 0;
-    
     ostringstream oss;
     oss << hr << " [" << szName << "] = [" << dispID << "]\r\n";
-    oss << szErrSource << ": ";
-    oss << szErrDescription << "\r\n";
+    if (hr == DISP_E_EXCEPTION)
+    {
+      // Convert down to ANSI (for error message only)
+      if (exceptInfo.pfnDeferredFillIn) exceptInfo.pfnDeferredFillIn(&exceptInfo);
+      if (!exceptInfo.bstrDescription && exceptInfo.scode) hr = exceptInfo.scode;
+    }
+    if (hr == DISP_E_EXCEPTION)
+    {
+      char szErrSource[256];
+      int sourceLen = WideCharToMultiByte(CP_ACP, 0, exceptInfo.bstrSource, SysStringLen(exceptInfo.bstrSource), szErrSource, sizeof(szErrSource), NULL, NULL);
+      char szErrDescription[256];
+      int descLen = WideCharToMultiByte(CP_ACP, 0, exceptInfo.bstrDescription, SysStringLen(exceptInfo.bstrDescription), szErrDescription, sizeof(szErrDescription), NULL, NULL);
+      szErrSource[sourceLen] = 0;
+      szErrDescription[descLen] = 0;
+      
+      oss << szErrSource << ": ";
+      oss << szErrDescription << "\r\n";
+    } else {
+      oss << errorFromCode(hr) << "\r\n";
+    }
     oss << "(It always seems to be appeared at that time you mistake calling ";
     oss << "'obj.get { ocv->getProp() }' <-> 'obj.call { ocv->invoke() }'.) ";
     oss << "IDispatch::Invoke AutoWrap";

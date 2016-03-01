@@ -57,6 +57,7 @@ namespace {
 
 NAN_MODULE_INIT(init)
 {
+  Nan::HandleScope scope;
   module_target.Reset(target);
   V8Variant::Init(target);
   Client::Init(target);

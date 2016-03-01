@@ -39,6 +39,8 @@ namespace ole32core {
 #define DASSERT(x)
 #define DVERIFY(x) (x)
 #endif
+extern std::string errorFromCode(DWORD code);
+extern std::wstring errorFromCodeW(DWORD code);
 extern BOOL chkerr(BOOL b, char *m, int n, char *f, char *e);
 #define BEVERIFY(y, x) if(!BVERIFY(x)){ goto y; }
 #define DEVERIFY(y, x) if(!DVERIFY(x)){ goto y; }
@@ -71,7 +73,7 @@ protected:
 public:
   OLE32coreException(std::string rm) : rmsg(rm) {}
   virtual ~OLE32coreException() {}
-  std::string errorMessage(char *m=NULL);
+  std::string errorMessage(const char *m=NULL);
 };
 
 class OCVariant {
@@ -81,11 +83,11 @@ public:
   OCVariant(); // result
   OCVariant(const OCVariant &s); // copy
   OCVariant(bool c_boolVal); // VT_BOOL
-  OCVariant(long lVal); // VT_I4
-  OCVariant(double dblVal); // VT_R8
-  OCVariant(double date, bool isdate); // VT_DATE
+  OCVariant(long lVal, VARTYPE type = VT_I4); // VT_I4
+  OCVariant(double dblVal, VARTYPE type = VT_R8); // VT_R8
   OCVariant(BSTR bstrVal); // VT_BSTR (previous allocated)
   OCVariant(std::string str); // allocate and convert to VT_BSTR
+  OCVariant(const wchar_t* str); // allocate and convert to VT_BSTR
   OCVariant& operator=(const OCVariant& other);
   virtual ~OCVariant();
   void checkOLEresult(std::string msg);

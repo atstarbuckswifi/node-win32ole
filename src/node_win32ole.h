@@ -73,7 +73,7 @@ namespace node_win32ole {
       std::cerr.flush(); \
       return info.GetReturnValue().Set(r); \
     } \
-    th = r->ToObject(); \
+    th = Nan::To<Object>(r).ToLocalChecked(); \
   }while(0)
 #else
 #define OLETRACEIN()
@@ -91,7 +91,7 @@ namespace node_win32ole {
     Handle<Value> r = V8Variant::OLEFlushCarryOver(th); \
     if(r->IsUndefined()) return; \
     if(!r->IsObject()) return info.GetReturnValue().Set(r); \
-    th = r->ToObject(); \
+    th = Nan::To<Object>(r).ToLocalChecked(); \
   }while(0)
 #endif
 

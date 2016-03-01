@@ -35,7 +35,7 @@ NAN_METHOD(Method_gettimeofday)
   struct timeval tv;
   timeval_gettimeofday(&tv);
   BEVERIFY(done, info[0]->IsObject());
-  Handle<Object> buf = info[0]->ToObject();
+  Handle<Object> buf = Nan::To<Object>(info[0]).ToLocalChecked();
   BEVERIFY(done, node::Buffer::Length(buf) == sizeof(struct timeval));
   memcpy(node::Buffer::Data(buf), &tv, sizeof(struct timeval));
   result = true;

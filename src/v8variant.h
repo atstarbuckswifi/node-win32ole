@@ -18,13 +18,11 @@ class V8Variant : public node::ObjectWrap {
 public:
   static Nan::Persistent<FunctionTemplate> clazz;
   static void Init(Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE target);
-  static std::string CreateStdStringMBCSfromUTF8(Handle<Value> v); // *** p.
   static ole32core::OCVariant *CreateOCVariant(Handle<Value> v); // *** private
   static NAN_METHOD(OLEIsA);
   static NAN_METHOD(OLEVTName);
   static NAN_METHOD(OLEBoolean); // *** p.
   static NAN_METHOD(OLEInt32); // *** p.
-  static NAN_METHOD(OLEInt64); // *** p.
   static NAN_METHOD(OLENumber); // *** p.
   static NAN_METHOD(OLEDate); // *** p.
   static NAN_METHOD(OLEUtf8); // *** p.
@@ -47,6 +45,11 @@ public:
 protected:
   static void Dispose(const Nan::WeakCallbackInfo<ole32core::OCVariant> &data);
   void Finalize();
+  static Local<Date> OLEDateToObject(const DATE& dt);
+  static Local<Value> VariantToValue(Handle<Object> thisObject, const VARIANT& ocv);
+  static Local<Value> ArrayToValue(Handle<Object> thisObject, const SAFEARRAY& a);
+  static Local<Value> ArrayToValueSlow(Handle<Object> thisObject, const SAFEARRAY& a, VARTYPE vt, LONG* idices, unsigned numIdx);
+  static Local<Value> ArrayPrimitiveToValue(Handle<Object> thisObject, void* loc, VARTYPE vt, unsigned cbElements, unsigned idx);
 protected:
   bool finalized;
   std::string property_carryover;

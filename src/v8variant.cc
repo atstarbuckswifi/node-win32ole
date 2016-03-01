@@ -16,13 +16,10 @@ namespace node_win32ole {
       return Nan::ThrowTypeError(__FUNCTION__ " takes exactly " #n " argument(s)"); \
     if(!info[0]->IsString()) \
       return Nan::ThrowTypeError(__FUNCTION__ " the first argument is not a Symbol"); \
-    if(n == 1) \
-      if(info.Length() >= 2) \
-        if(!info[1]->IsArray()) \
-          return Nan::ThrowTypeError(__FUNCTION__ " the second argument is not an Array"); \
-        else av1 = info[1]; /* Array */ \
-      else av1 = Nan::New<Array>(0); /* change none to Array[] */ \
-    else av1 = info[1]; /* may not be Array */ \
+    if(n != 1) av1 = info[1]; /* may not be Array */ \
+    else if(info.Length() < 2) av1 = Nan::New<Array>(0); /* change none to Array[] */ \
+    else if(info[1]->IsArray()) av1 = info[1]; /* Array */ \
+    else return Nan::ThrowTypeError(__FUNCTION__ " the second argument is not an Array"); \
     av0 = info[0]; \
   }while(0)
 
@@ -38,7 +35,6 @@ void V8Variant::Init(Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE target)
   Nan::SetPrototypeMethod(t, "vtName", OLEVTName);
   Nan::SetPrototypeMethod(t, "toBoolean", OLEBoolean);
   Nan::SetPrototypeMethod(t, "toInt32", OLEInt32);
-  Nan::SetPrototypeMethod(t, "toInt64", OLEInt64);
   Nan::SetPrototypeMethod(t, "toNumber", OLENumber);
   Nan::SetPrototypeMethod(t, "toDate", OLEDate);
   Nan::SetPrototypeMethod(t, "toUtf8", OLEUtf8);
@@ -63,28 +59,6 @@ void V8Variant::Init(Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE target)
   clazz.Reset(t);
 }
 
-std::string V8Variant::CreateStdStringMBCSfromUTF8(Handle<Value> v)
-{
-  String::Utf8Value u8s(v);
-  wchar_t * wcs = u8s2wcs(*u8s);
-  if(!wcs){
-    std::cerr << "[Can't allocate string (wcs)]" << std::endl;
-    std::cerr.flush();
-    return std::string("'!ERROR'");
-  }
-  char *mbs = wcs2mbs(wcs);
-  if(!mbs){
-    free(wcs);
-    std::cerr << "[Can't allocate string (mbs)]" << std::endl;
-    std::cerr.flush();
-    return std::string("'!ERROR'");
-  }
-  std::string s(mbs);
-  free(mbs);
-  free(wcs);
-  return s;
-}
-
 OCVariant *V8Variant::CreateOCVariant(Handle<Value> v)
 {
   if (v->IsNull() || v->IsUndefined()) {
@@ -97,7 +71,7 @@ OCVariant *V8Variant::CreateOCVariant(Handle<Value> v)
   BEVERIFY(done, !v->IsNativeError());
   BEVERIFY(done, !v->IsFunction());
 // VT_USERDEFINED VT_VARIANT VT_BYREF VT_ARRAY more...
-  if(v->IsBoolean()){
+  if(v->IsBoolean() || v->IsBooleanObject()){
     return new OCVariant(Nan::To<bool>(v).FromJust());
   }else if(v->IsArray()){
 // VT_BYREF VT_ARRAY VT_SAFEARRAY
@@ -105,19 +79,15 @@ OCVariant *V8Variant::CreateOCVariant(Handle<Value> v)
     std::cerr.flush();
   }else if(v->IsInt32()){
     return new OCVariant((long)Nan::To<int32_t>(v).FromJust());
+  }else if(v->IsUint32()){
+    return new OCVariant((long)Nan::To<uint32_t>(v).FromJust(), VT_UI4);
 #if(0) // may not be supported node.js / v8
   }else if(v->IsInt64()){
     return new OCVariant(Nan::To<int64_t>(v).FromJust());
 #endif
-  }else if(v->IsNumber()){
+  }else if(v->IsNumber() || v->IsNumberObject()){
     std::cerr << "[Number (VT_R8 or VT_I8 bug?)]" << std::endl;
     std::cerr.flush();
-// if(v->ToInteger()) =64 is failed ? double : OCVariant((longlong)VT_I8)
-    return new OCVariant(Nan::To<double>(v).FromJust()); // double
-  }else if(v->IsNumberObject()){
-    std::cerr << "[NumberObject (VT_R8 or VT_I8 bug?)]" << std::endl;
-    std::cerr.flush();
-// if(v->ToInteger()) =64 is failed ? double : OCVariant((longlong)VT_I8)
     return new OCVariant(Nan::To<double>(v).FromJust()); // double
   }else if(v->IsDate()){
     double d = Nan::To<double>(v).FromJust();
@@ -138,23 +108,19 @@ OCVariant *V8Variant::CreateOCVariant(Handle<Value> v)
     syst.wSecond = t->tm_sec;
     syst.wMilliseconds = msec;
     SystemTimeToVariantTime(&syst, &d);
-    return new OCVariant(d, true); // date
+    return new OCVariant(d, VT_DATE); // date
   }else if(v->IsRegExp()){
     std::cerr << "[RegExp (bug?)]" << std::endl;
     std::cerr.flush();
-    return new OCVariant(CreateStdStringMBCSfromUTF8(v->ToDetailString()));
-  }else if(v->IsString()){
-    return new OCVariant(CreateStdStringMBCSfromUTF8(v));
-  }else if(v->IsStringObject()){
-    std::cerr << "[StringObject (bug?)]" << std::endl;
-    std::cerr.flush();
-    return new OCVariant(CreateStdStringMBCSfromUTF8(v));
+    return new OCVariant((const wchar_t*)*String::Value(v->ToDetailString()));
+  }else if(v->IsString() || v->IsStringObject()){
+    return new OCVariant((const wchar_t*)*String::Value(v));
   }else if(v->IsObject()){
 #if(0)
     std::cerr << "[Object (test)]" << std::endl;
     std::cerr.flush();
 #endif
-    V8Variant *v8v = V8Variant::Unwrap<V8Variant>(v->ToObject());
+    V8Variant *v8v = V8Variant::Unwrap<V8Variant>(Nan::To<Object>(v).ToLocalChecked());
     if(!v8v){
       std::cerr << "[Object may not be valid (null V8Variant)]" << std::endl;
       std::cerr.flush();
@@ -197,7 +163,7 @@ NAN_METHOD(V8Variant::OLEBoolean)
   CHECK_V8V(v8v);
   if(v8v->ocv.v.vt != VT_BOOL)
     return Nan::ThrowTypeError("OLEBoolean source type OCVariant is not VT_BOOL");
-  bool c_boolVal = v8v->ocv.v.boolVal == VARIANT_FALSE ? 0 : !0;
+  bool c_boolVal = v8v->ocv.v.boolVal != VARIANT_FALSE;
   DISPFUNCOUT();
   return info.GetReturnValue().Set(c_boolVal);
 }
@@ -213,18 +179,6 @@ NAN_METHOD(V8Variant::OLEInt32)
     return Nan::ThrowTypeError("OLEInt32 source type OCVariant is not VT_I4 nor VT_INT nor VT_UI4 nor VT_UINT");
   DISPFUNCOUT();
   return info.GetReturnValue().Set(Nan::New(v.lVal));
-}
-
-NAN_METHOD(V8Variant::OLEInt64)
-{
-  DISPFUNCIN();
-  V8Variant *v8v = V8Variant::Unwrap<V8Variant>(info.This());
-  CHECK_V8V(v8v);
-  VARIANT& v = v8v->ocv.v;
-  if(v.vt != VT_I8 && v.vt != VT_UI8)
-    return Nan::ThrowTypeError("OLEInt64 source type OCVariant is not VT_I8 nor VT_UI8");
-  DISPFUNCOUT();
-  return info.GetReturnValue().Set(Nan::New<Number>(double(v.llVal)));
 }
 
 NAN_METHOD(V8Variant::OLENumber)
@@ -247,17 +201,9 @@ NAN_METHOD(V8Variant::OLEDate)
   VARIANT& v = v8v->ocv.v;
   if(v.vt != VT_DATE)
     return Nan::ThrowTypeError("OLEDate source type OCVariant is not VT_DATE");
-  SYSTEMTIME syst;
-  VariantTimeToSystemTime(v.date, &syst);
-  struct tm t = {0}; // set t.tm_isdst = 0
-  t.tm_year = syst.wYear - 1900;
-  t.tm_mon = syst.wMonth - 1;
-  t.tm_mday = syst.wDay;
-  t.tm_hour = syst.wHour;
-  t.tm_min = syst.wMinute;
-  t.tm_sec = syst.wSecond;
+  Local<Date> result = OLEDateToObject(v.date);
   DISPFUNCOUT();
-  return info.GetReturnValue().Set(Nan::New<Date>(mktime(&t) * 1000.0 + syst.wMilliseconds).ToLocalChecked());
+  return info.GetReturnValue().Set(result);
 }
 
 NAN_METHOD(V8Variant::OLEUtf8)
@@ -293,33 +239,370 @@ NAN_METHOD(V8Variant::OLEValue)
   if (!v8v) { std::cerr << "v8v is null"; std::cerr.flush(); }
   CHECK_V8V(v8v);
   VARIANT& v = v8v->ocv.v;
-  if(v.vt == VT_EMPTY) ; // do nothing
-  else if (v.vt == VT_NULL) {
-    return info.GetReturnValue().SetNull();
-  }
-  else if (v.vt == VT_DISPATCH) {
+  switch(v.vt)
+  {
+  case VT_DISPATCH:
     if (v.pdispVal == NULL) {
       return info.GetReturnValue().SetNull();
+    } else {
+      return info.GetReturnValue().Set(thisObject); // through it
     }
-    return info.GetReturnValue().Set(thisObject); // through it
-  }
-  else if(v.vt == VT_BOOL) OLEBoolean(info);
-  else if(v.vt == VT_I4 || v.vt == VT_INT
-  || v.vt == VT_UI4 || v.vt == VT_UINT) OLEInt32(info);
-  else if(v.vt == VT_I8 || v.vt == VT_UI8) OLEInt64(info);
-  else if(v.vt == VT_R8) OLENumber(info);
-  else if(v.vt == VT_DATE) OLEDate(info);
-  else if(v.vt == VT_BSTR) OLEUtf8(info);
-  else if(v.vt == VT_ARRAY || v.vt == VT_SAFEARRAY){
-    std::cerr << "[Array (not implemented now)]" << std::endl;
-    std::cerr.flush();
-  }else{
-    Handle<Value> s = INSTANCE_CALL(thisObject, "vtName", 0, NULL);
-    std::cerr << "[unknown type " << v.vt << ":" << *String::Utf8Value(s);
-    std::cerr << " (not implemented now)]" << std::endl;
-    std::cerr.flush();
+  case VT_DISPATCH|VT_BYREF:
+    if (!v.ppdispVal) return info.GetReturnValue().SetUndefined(); // really shouldn't happen
+    if (*v.ppdispVal == NULL) {
+      return info.GetReturnValue().SetNull();
+    } else {
+      return info.GetReturnValue().Set(thisObject); // through it
+    }
+  default:
+    return info.GetReturnValue().Set(VariantToValue(info.This(), v));
   }
 //done:
+  OLETRACEOUT();
+}
+
+Local<Date> V8Variant::OLEDateToObject(const DATE& dt)
+{
+  DISPFUNCIN();
+  SYSTEMTIME syst;
+  VariantTimeToSystemTime(dt, &syst);
+  struct tm t = { 0 }; // set t.tm_isdst = 0
+  t.tm_year = syst.wYear - 1900;
+  t.tm_mon = syst.wMonth - 1;
+  t.tm_mday = syst.wDay;
+  t.tm_hour = syst.wHour;
+  t.tm_min = syst.wMinute;
+  t.tm_sec = syst.wSecond;
+  DISPFUNCOUT();
+  return Nan::New<Date>(mktime(&t) * 1000.0 + syst.wMilliseconds).ToLocalChecked();
+}
+
+Local<Value> V8Variant::ArrayPrimitiveToValue(Handle<Object> thisObject, void* loc, VARTYPE vt, unsigned cbElements, unsigned idx)
+{
+  /*
+  *  VT_CY               [V][T][P][S]  currency
+  *  VT_UNKNOWN          [V][T]   [S]  IUnknown *
+  *  VT_DECIMAL          [V][T]   [S]  16 byte fixed point
+  *  VT_RECORD           [V]   [P][S]  user defined type
+  */
+  switch (vt)
+  {
+  case VT_DISPATCH:
+    // ASSERT: cbElements == sizeof(IDispatch*)
+    if (reinterpret_cast<IDispatch**>(loc)[idx] == NULL) {
+      return Nan::Null();
+    } else {
+      Handle<Object> vResult = V8Variant::CreateUndefined();
+      V8Variant *o = V8Variant::Unwrap<V8Variant>(vResult);
+      CHECK_V8V_UNDEFINED(o);
+      VARIANT& dest = o->ocv.v;
+      dest.vt = VT_DISPATCH;
+      dest.pdispVal = reinterpret_cast<IDispatch**>(loc)[idx];
+      dest.pdispVal->AddRef();
+      return vResult;
+    }
+  case VT_ERROR:
+    // ASSERT: cbElements == sizeof(SCODE)
+    return Exception::Error(Nan::New<String>((const uint16_t*)errorFromCodeW(reinterpret_cast<SCODE*>(loc)[idx]).c_str()).ToLocalChecked());
+  case VT_BOOL:
+    // ASSERT: cbElements == sizeof(VARIANT_BOOL)
+    return reinterpret_cast<VARIANT_BOOL*>(loc)[idx] != VARIANT_FALSE ? Nan::True() : Nan::False();
+  case VT_I1:
+    // ASSERT: cbElements == sizeof(CHAR)
+    return Nan::New(reinterpret_cast<CHAR*>(loc)[idx]);
+  case VT_UI1:
+    // ASSERT: cbElements == sizeof(BYTE)
+    return Nan::New(reinterpret_cast<BYTE*>(loc)[idx]);
+  case VT_I2:
+    // ASSERT: cbElements == sizeof(SHORT)
+    return Nan::New(reinterpret_cast<SHORT*>(loc)[idx]);
+  case VT_UI2:
+    // ASSERT: cbElements == sizeof(USHORT)
+    return Nan::New(reinterpret_cast<USHORT*>(loc)[idx]);
+  case VT_I4:
+    // ASSERT: cbElements == sizeof(LONG)
+    return Nan::New(reinterpret_cast<LONG*>(loc)[idx]);
+  case VT_UI4:
+    // ASSERT: cbElements == sizeof(ULONG)
+    return  Nan::New((uint32_t)reinterpret_cast<ULONG*>(loc)[idx]);
+  case VT_INT:
+    // ASSERT: cbElements == sizeof(INT)
+    return Nan::New(reinterpret_cast<INT*>(loc)[idx]);
+  case VT_UINT:
+    // ASSERT: cbElements == sizeof(UINT)
+    return Nan::New(reinterpret_cast<UINT*>(loc)[idx]);
+  case VT_R4:
+    // ASSERT: cbElements == sizeof(FLOAT)
+    return Nan::New(reinterpret_cast<FLOAT*>(loc)[idx]);
+  case VT_R8:
+    // ASSERT: cbElements == sizeof(DOUBLE)
+    return Nan::New(reinterpret_cast<DOUBLE*>(loc)[idx]);
+  case VT_BSTR:
+    // ASSERT: cbElements == sizeof(BSTR)
+    if (!reinterpret_cast<BSTR*>(loc)[idx]) return Nan::Undefined(); // really shouldn't happen
+    return Nan::New<String>((const uint16_t*)reinterpret_cast<BSTR*>(loc)[idx]).ToLocalChecked();
+  case VT_DATE:
+    // ASSERT: cbElements == sizeof(DATE)
+    return OLEDateToObject(reinterpret_cast<DATE*>(loc)[idx]);
+  case VT_VARIANT:
+    // ASSERT: cbElements == sizeof(VARIANT)
+    return VariantToValue(thisObject, reinterpret_cast<VARIANT*>(loc)[idx]);
+  default:
+    {
+      Handle<Value> s = INSTANCE_CALL(thisObject, "vtName", 0, NULL);
+      std::cerr << "[unknown type " << vt << ":" << *String::Utf8Value(s);
+      std::cerr << " (not implemented now)]" << std::endl;
+      std::cerr.flush();
+    }
+    return Nan::Undefined();
+  }
+}
+
+Local<Value> V8Variant::ArrayToValue(Handle<Object> thisObject, const SAFEARRAY& a)
+{
+  OLETRACEIN();
+  OLETRACEFLUSH();
+  VARTYPE vt = VT_EMPTY;
+  if (a.fFeatures&FADF_BSTR)
+  {
+    vt = VT_BSTR;
+  }
+  else if (a.fFeatures&FADF_UNKNOWN)
+  {
+    vt = VT_UNKNOWN;
+  }
+  else if (a.fFeatures&FADF_DISPATCH)
+  {
+    vt = VT_DISPATCH;
+  }
+  else if (a.fFeatures&FADF_VARIANT)
+  {
+    vt = VT_VARIANT;
+  }
+  else if (a.fFeatures&FADF_HAVEVARTYPE)
+  {
+    HRESULT hr = SafeArrayGetVartype(const_cast<SAFEARRAY*>(&a), &vt);
+    if (FAILED(hr))
+    {
+      std::cerr << "[Unable to get type of array: " << errorFromCode(hr) << "]" << std::endl;
+      std::cerr.flush();
+      return Nan::Undefined();
+    }
+  }
+  if (vt == VT_EMPTY)
+  {
+    std::cerr << "[Unable to get type of array (no useful flags set)]" << std::endl;
+    std::cerr.flush();
+    return Nan::Undefined();
+  }
+  const SAFEARRAYBOUND& bnds = a.rgsabound[0];
+  if (a.cDims == 0)
+  {
+    return Nan::New<Array>(0);
+  }
+  else if (a.cDims == 1)
+  {
+    // fast array copy, using SafeArrayAccessData
+    Local<Array> result = Nan::New<Array>(bnds.cElements);
+    void* raw;
+    HRESULT hr = SafeArrayAccessData(const_cast<SAFEARRAY*>(&a), &raw);
+    if (FAILED(hr))
+    {
+      std::cerr << "[Unable to access array contents: " << errorFromCode(hr) << "]" << std::endl;
+      std::cerr.flush();
+      return Nan::Undefined();
+    }
+    for (unsigned idx = 0; idx < bnds.cElements; idx++)
+    {
+      Nan::Set(result, idx, ArrayPrimitiveToValue(thisObject, raw, vt, a.cbElements, idx));
+    }
+    hr = SafeArrayUnaccessData(const_cast<SAFEARRAY*>(&a));
+    if (FAILED(hr))
+    {
+      std::cerr << "[Unable to release array contents: " << errorFromCode(hr) << "]" << std::endl;
+      std::cerr.flush();
+    }
+    return result;
+  } else {
+    // slow array copy, using SafeArrayGetElement
+    Local<Array> result = Nan::New<Array>(bnds.cElements);
+    for (unsigned idx = 0; idx < bnds.cElements; idx++)
+    {
+      LONG srcIndex = idx + bnds.lLbound;
+      Nan::Set(result, idx, ArrayToValueSlow(thisObject, a, vt, &srcIndex, 1));
+    }
+    return result;
+  }
+  OLETRACEOUT();
+}
+
+Local<Value> V8Variant::ArrayToValueSlow(Handle<Object> thisObject, const SAFEARRAY& a, VARTYPE vt, LONG* idices, unsigned numIdx)
+{
+  OLETRACEIN();
+  OLETRACEFLUSH();
+  if (numIdx <= a.cDims)
+  {
+    void* elm = alloca(a.cbElements);
+    HRESULT hr = SafeArrayGetElement(const_cast<SAFEARRAY*>(&a), idices, elm);
+    if (FAILED(hr))
+    {
+      std::cerr << "[Unable to access array element: " << errorFromCode(hr) << "]" << std::endl;
+      std::cerr.flush();
+      return Nan::Undefined();
+    }
+    return ArrayPrimitiveToValue(thisObject, elm, vt, a.cbElements, 0);
+  } else {
+    LONG* newIdx = (LONG*)alloca(sizeof(LONG) * (numIdx + 1));
+    memcpy(newIdx, idices, sizeof(LONG)*numIdx);
+    const SAFEARRAYBOUND& bnds = a.rgsabound[numIdx-1];
+    Local<Array> result = Nan::New<Array>(bnds.cElements);
+    for (unsigned idx = 0; idx < bnds.cElements; idx++)
+    {
+      newIdx[numIdx] = idx + bnds.lLbound;
+      Nan::Set(result, idx, ArrayToValueSlow(thisObject, a, vt, newIdx, numIdx+1));
+    }
+    return result;
+  }
+  OLETRACEOUT();
+}
+
+Local<Value> V8Variant::VariantToValue(Handle<Object> thisObject, const VARIANT& v)
+{
+  OLETRACEIN();
+  OLETRACEFLUSH();
+  /*
+  *  VT_CY               [V][T][P][S]  currency
+  *  VT_UNKNOWN          [V][T]   [S]  IUnknown *
+  *  VT_DECIMAL          [V][T]   [S]  16 byte fixed point
+  *  VT_RECORD           [V]   [P][S]  user defined type
+  */
+  Local<Object> result;
+  switch (v.vt)
+  {
+  case VT_EMPTY:
+  case VT_NULL:
+    return Nan::Null();
+  case VT_ERROR:
+    return Exception::Error(Nan::New<String>((const uint16_t*)errorFromCodeW(v.scode).c_str()).ToLocalChecked());
+  case VT_ERROR | VT_BYREF:
+    if (!v.ppdispVal) return Nan::Undefined(); // really shouldn't happen
+    return Exception::Error(Nan::New<String>((const uint16_t*)errorFromCodeW(*v.pscode).c_str()).ToLocalChecked());
+  case VT_DISPATCH:
+    if (v.pdispVal == NULL) {
+      return Nan::Null();
+    } else {
+      Handle<Object> vResult = V8Variant::CreateUndefined();
+      V8Variant *o = V8Variant::Unwrap<V8Variant>(vResult);
+      CHECK_V8V_UNDEFINED(o);
+      VariantCopy(&o->ocv.v, &v); // copy rv value
+      return vResult;
+    }
+  case VT_DISPATCH | VT_BYREF:
+    if (!v.ppdispVal) return Nan::Undefined(); // really shouldn't happen
+    if (*v.ppdispVal == NULL) {
+      return Nan::Null();
+    } else {
+      Handle<Object> vResult = V8Variant::CreateUndefined();
+      V8Variant *o = V8Variant::Unwrap<V8Variant>(vResult);
+      CHECK_V8V_UNDEFINED(o);
+      VariantCopy(&o->ocv.v, &v); // copy rv value
+      VariantChangeType(&o->ocv.v, &o->ocv.v, 0, VT_DISPATCH);
+      return vResult;
+    }
+  case VT_BOOL:
+    return v.boolVal != VARIANT_FALSE ? Nan::True() : Nan::False();
+  case VT_BOOL | VT_BYREF:
+    if (!v.pboolVal) return Nan::Undefined(); // really shouldn't happen
+    return *v.pboolVal != VARIANT_FALSE ? Nan::True() : Nan::False();
+  case VT_I1:
+    return Nan::New(v.cVal);
+  case VT_I1 | VT_BYREF:
+    if (!v.pcVal) return Nan::Undefined(); // really shouldn't happen
+    return Nan::New(*v.pcVal);
+  case VT_UI1:
+    return Nan::New(v.bVal);
+  case VT_UI1 | VT_BYREF:
+    if (!v.pbVal) return Nan::Undefined(); // really shouldn't happen
+    return Nan::New(*v.pbVal);
+  case VT_I2:
+    return Nan::New(v.iVal);
+  case VT_I2 | VT_BYREF:
+    if (!v.piVal) return Nan::Undefined(); // really shouldn't happen
+    return Nan::New(*v.piVal);
+  case VT_UI2:
+    return Nan::New(v.uiVal);
+  case VT_UI2 | VT_BYREF:
+    if (!v.puiVal) return Nan::Undefined(); // really shouldn't happen
+    return Nan::New(*v.puiVal);
+  case VT_I4:
+    return Nan::New(v.lVal);
+  case VT_I4 | VT_BYREF:
+    if (!v.plVal) return Nan::Undefined(); // really shouldn't happen
+    return Nan::New(*v.plVal);
+  case VT_UI4:
+    return Nan::New((uint32_t)v.ulVal);
+  case VT_UI4 | VT_BYREF:
+    if (!v.pulVal) return Nan::Undefined(); // really shouldn't happen
+    return Nan::New((uint32_t)*v.pulVal);
+  case VT_INT:
+    return Nan::New(v.intVal);
+  case VT_INT | VT_BYREF:
+    if (!v.pintVal) return Nan::Undefined(); // really shouldn't happen
+    return Nan::New(*v.pintVal);
+  case VT_UINT:
+    return Nan::New(v.uintVal);
+  case VT_UINT | VT_BYREF:
+    if (!v.puintVal) return Nan::Undefined(); // really shouldn't happen
+    return Nan::New(*v.puintVal);
+  case VT_R4:
+    return Nan::New(v.fltVal);
+  case VT_R4 | VT_BYREF:
+    if (!v.pfltVal) return Nan::Undefined(); // really shouldn't happen
+    return Nan::New(*v.pfltVal);
+  case VT_R8:
+    return Nan::New(v.dblVal);
+  case VT_R8 | VT_BYREF:
+    if (!v.pdblVal) return Nan::Undefined(); // really shouldn't happen
+    return Nan::New(*v.pdblVal);
+  case VT_BSTR:
+    if (!v.bstrVal) return Nan::Undefined(); // really shouldn't happen
+    return Nan::New<String>((const uint16_t*)v.bstrVal).ToLocalChecked();
+  case VT_BSTR | VT_BYREF:
+    if (!v.pbstrVal || !*v.pbstrVal) return Nan::Undefined(); // really shouldn't happen
+    return Nan::New<String>((const uint16_t*)*v.pbstrVal).ToLocalChecked();
+  case VT_DATE:
+    return OLEDateToObject(v.date);
+  case VT_DATE | VT_BYREF:
+    if (!v.pdate) return Nan::Undefined(); // really shouldn't happen
+    return OLEDateToObject(*v.pdate);
+  case VT_VARIANT | VT_BYREF:
+    if (!v.pvarVal) return Nan::Undefined(); // really shouldn't happen
+    return VariantToValue(thisObject, *v.pvarVal);
+  case VT_SAFEARRAY:
+    if (!v.parray) return Nan::Undefined(); // really shouldn't happen
+    return ArrayToValue(thisObject, *v.parray);
+  case VT_SAFEARRAY | VT_BYREF:
+    if (!v.pparray || !*v.pparray) return Nan::Undefined(); // really shouldn't happen
+    return ArrayToValue(thisObject, **v.pparray);
+  default:
+    if (v.vt & VT_ARRAY)
+    {
+      if (v.vt & VT_BYREF)
+      {
+        if (!v.pparray || !*v.pparray) return Nan::Undefined(); // really shouldn't happen
+        return ArrayToValue(thisObject, **v.pparray);
+      } else {
+        if (!v.parray) return Nan::Undefined(); // really shouldn't happen
+        return ArrayToValue(thisObject, *v.parray);
+      }
+    } else {
+      Handle<Value> s = INSTANCE_CALL(thisObject, "vtName", 0, NULL);
+      std::cerr << "[unknown type " << v.vt << ":" << *String::Utf8Value(s);
+      std::cerr << " (not implemented now)]" << std::endl;
+      std::cerr.flush();
+    }
+    return Nan::Undefined();
+  }
   OLETRACEOUT();
 }
 
@@ -403,9 +686,9 @@ NAN_METHOD(V8Variant::New)
 Handle<Value> V8Variant::OLEFlushCarryOver(Handle<Value> v)
 {
   OLETRACEIN();
-  OLETRACEVT_UNDEFINED(v->ToObject());
+  OLETRACEVT_UNDEFINED(Nan::To<Object>(v).ToLocalChecked());
   Handle<Value> result = Nan::Undefined();
-  V8Variant *v8v = node::ObjectWrap::Unwrap<V8Variant>(v->ToObject());
+  V8Variant *v8v = node::ObjectWrap::Unwrap<V8Variant>(Nan::To<Object>(v).ToLocalChecked());
   if(v8v->property_carryover.empty()){
     std::cerr << " *** carryover empty *** " << __FUNCTION__ << std::endl;
     std::cerr.flush();
@@ -420,10 +703,10 @@ Handle<Value> V8Variant::OLEFlushCarryOver(Handle<Value> v)
     Handle<Value> argv[] = {Nan::New(name).ToLocalChecked(), Nan::New<Array>(0)};
     int argc = sizeof(argv) / sizeof(argv[0]); // == 2
     v8v->property_carryover.clear();
-    result = INSTANCE_CALL(v->ToObject(), "call", argc, argv);
+    result = INSTANCE_CALL(Nan::To<Object>(v).ToLocalChecked(), "call", argc, argv);
     OCVariant *rv = V8Variant::CreateOCVariant(result);
     CHECK_OCV_UNDEFINED(rv);
-    V8Variant *o = V8Variant::Unwrap<V8Variant>(v->ToObject());
+    V8Variant *o = V8Variant::Unwrap<V8Variant>(Nan::To<Object>(v).ToLocalChecked());
     CHECK_V8V_UNDEFINED(o);
     o->ocv = *rv; // copy rv value
     delete rv;
@@ -465,7 +748,7 @@ NAN_METHOD(OLEInvoke)
       delete rv;
     }
   }catch(OLE32coreException e){ std::cerr << e.errorMessage(*u8s); goto done;
-  }catch(char *e){ std::cerr << e << *u8s << std::endl; goto done;
+  }catch(const char *e){ std::cerr << e << *u8s << std::endl; goto done;
   }
   ::SysFreeString(bName);
   Handle<Value> result = INSTANCE_CALL(vResult, "toValue", 0, NULL);
@@ -520,7 +803,7 @@ NAN_METHOD(V8Variant::OLESet)
   try{
     v8v->ocv.putProp(bName, &argchain, 1); // argchain will be deleted automatically
   }catch(OLE32coreException e){ std::cerr << e.errorMessage(*u8s); goto done;
-  }catch(char *e){ std::cerr << e << *u8s << std::endl; goto done;
+  }catch(const char *e){ std::cerr << e << *u8s << std::endl; goto done;
   }
   ::SysFreeString(bName);
   result = true;
@@ -622,7 +905,7 @@ NAN_PROPERTY_GETTER(V8Variant::OLEGetAttr)
     {0, "call", OLECall}, {0, "get", OLEGet}, {0, "set", OLESet},
     {0, "isA", OLEIsA}, {0, "vtName", OLEVTName}, // {"vt_names", ???},
     {!0, "toBoolean", OLEBoolean},
-    {!0, "toInt32", OLEInt32}, {!0, "toInt64", OLEInt64},
+    {!0, "toInt32", OLEInt32},
     {!0, "toNumber", OLENumber}, {!0, "toDate", OLEDate},
     {!0, "toUtf8", OLEUtf8},
     {0, "toValue", OLEValue},

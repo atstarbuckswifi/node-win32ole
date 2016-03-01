@@ -40,7 +40,7 @@ NAN_METHOD(Client::New)
   Local<Object> thisObject = info.This();
   Client *cl = new Client(); // must catch exception
   if (!cl)
-	  return Nan::ThrowTypeError("Can't create new Client object (null OLE32core)");
+    return Nan::ThrowTypeError("Can't create new Client object (null OLE32core)");
   cl->Wrap(thisObject); // InternalField[0]
   bool cnresult = false;
   try{
