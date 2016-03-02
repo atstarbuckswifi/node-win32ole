@@ -42,16 +42,11 @@ NAN_METHOD(Client::New)
   if (!cl)
     return Nan::ThrowTypeError("Can't create new Client object (null OLE32core)");
   cl->Wrap(thisObject); // InternalField[0]
-  bool cnresult = false;
-  try{
-    cnresult = cl->oc.connect(cstr_locale);
-  }catch(OLE32coreException e){
-    std::cerr << e.errorMessage((char *)cstr_locale.c_str());
-  }catch(char *e){
-    std::cerr << e << cstr_locale.c_str() << std::endl;
+  HRESULT cnresult = cl->oc.connect(cstr_locale);
+  if (FAILED(cnresult))
+  {
+    return Nan::ThrowError(NewOleException(cnresult));
   }
-  if(!cnresult)
-    return Nan::ThrowTypeError("May be CoInitialize() is failed.");
   DISPFUNCOUT();
   return info.GetReturnValue().Set(thisObject);
 }
@@ -61,6 +56,12 @@ NAN_METHOD(Client::Dispatch)
   DISPFUNCIN();
   BEVERIFY(done, info.Length() >= 1);
   BEVERIFY(done, info[0]->IsString());
+  if (false)
+  {
+done:
+    DISPFUNCOUT();
+    return Nan::ThrowTypeError("Dispatch failed");
+  }
   wchar_t *wcs;
   {
     String::Utf8Value u8s(info[0]); // must create here
@@ -114,13 +115,9 @@ NAN_METHOD(Client::Dispatch)
 #endif
     hr = CoCreateInstance(clsid, NULL, ctx, riid, (void **)&app->v.pdispVal);
   }
-  if(FAILED(hr)) BDISPFUNCDAT("FAILED CoCreateInstance: %d: 0x%08x\n", 1, hr);
-  BEVERIFY(done, !FAILED(hr));
+  if (FAILED(hr)) return Nan::ThrowError(NewOleException(hr));
   DISPFUNCOUT();
   return info.GetReturnValue().Set(vApp);
-done:
-  DISPFUNCOUT();
-  return Nan::ThrowTypeError("Dispatch failed");
 }
 
 NAN_METHOD(Client::Finalize)

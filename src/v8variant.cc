@@ -23,6 +23,21 @@ namespace node_win32ole {
     av0 = info[0]; \
   }while(0)
 
+Handle<Value> NewOleException(HRESULT hr, const std::wstring& msg)
+{
+  Handle<String> hMsg;
+  if (msg.empty())
+  {
+    hMsg = Nan::New<String>((const uint16_t*)errorFromCodeW(hr).c_str()).ToLocalChecked();
+  } else {
+    hMsg = Nan::New<String>((const uint16_t*)msg.c_str()).ToLocalChecked();
+  }
+  Local<v8::Value> args[2] = { Nan::New<Uint32>(hr), hMsg };
+  Local<Object> target = Nan::New(module_target);
+  Handle<Function> function = Handle<Function>::Cast(GET_PROP(target, "OLEException").ToLocalChecked());
+  return Nan::NewInstance(function, 2, args).ToLocalChecked();
+}
+
 Nan::Persistent<FunctionTemplate> V8Variant::clazz;
 
 void V8Variant::Init(Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE target)
@@ -303,7 +318,7 @@ Local<Value> V8Variant::ArrayPrimitiveToValue(Handle<Object> thisObject, void* l
     }
   case VT_ERROR:
     // ASSERT: cbElements == sizeof(SCODE)
-    return Exception::Error(Nan::New<String>((const uint16_t*)errorFromCodeW(reinterpret_cast<SCODE*>(loc)[idx]).c_str()).ToLocalChecked());
+    return Exception::Error(Nan::New<String>((const uint16_t*)errorFromCodeW(HRESULT_FROM_WIN32(reinterpret_cast<SCODE*>(loc)[idx])).c_str()).ToLocalChecked());
   case VT_BOOL:
     // ASSERT: cbElements == sizeof(VARIANT_BOOL)
     return reinterpret_cast<VARIANT_BOOL*>(loc)[idx] != VARIANT_FALSE ? Nan::True() : Nan::False();
@@ -483,10 +498,10 @@ Local<Value> V8Variant::VariantToValue(Handle<Object> thisObject, const VARIANT&
   case VT_NULL:
     return Nan::Null();
   case VT_ERROR:
-    return Exception::Error(Nan::New<String>((const uint16_t*)errorFromCodeW(v.scode).c_str()).ToLocalChecked());
+    return Exception::Error(Nan::New<String>((const uint16_t*)errorFromCodeW(HRESULT_FROM_WIN32(v.scode)).c_str()).ToLocalChecked());
   case VT_ERROR | VT_BYREF:
     if (!v.ppdispVal) return Nan::Undefined(); // really shouldn't happen
-    return Exception::Error(Nan::New<String>((const uint16_t*)errorFromCodeW(*v.pscode).c_str()).ToLocalChecked());
+    return Exception::Error(Nan::New<String>((const uint16_t*)errorFromCodeW(HRESULT_FROM_WIN32(*v.pscode)).c_str()).ToLocalChecked());
   case VT_DISPATCH:
     if (v.pdispVal == NULL) {
       return Nan::Null();
@@ -728,7 +743,7 @@ NAN_METHOD(OLEInvoke)
   CHECK_OLE_ARGS(info, 1, av0, av1);
   String::Utf8Value u8s(av0);
   BSTR bName = MBCS2BSTR(*u8s);
-  BEVERIFY(done, bName);
+  if (!bName) return Nan::ThrowError(NewOleException(E_OUTOFMEMORY));
   Array *a = Array::Cast(*av1);
   uint32_t argLen = a->Length();
   OCVariant **argchain = argLen ? (OCVariant**)alloca(sizeof(OCVariant*)*argLen) : NULL;
@@ -738,27 +753,22 @@ NAN_METHOD(OLEInvoke)
     argchain[i] = o;
   }
   Handle<Object> vResult = V8Variant::CreateUndefined();
-  try{
-    OCVariant *rv = isCall ? // argchain will be deleted automatically
-      v8v->ocv.invoke(bName, argchain, argLen, true) : v8v->ocv.getProp(bName, argchain, argLen);
-    if(rv){
-      V8Variant *o = V8Variant::Unwrap<V8Variant>(vResult);
-      CHECK_V8V(o);
-      o->ocv = *rv; // copy rv value
-      delete rv;
-    }
-  }catch(OLE32coreException e){ std::cerr << e.errorMessage(*u8s); goto done;
-  }catch(const char *e){ std::cerr << e << *u8s << std::endl; goto done;
-  }
+  std::wstring errMsg;
+  OCVariant rv;
+  HRESULT hr = isCall ? // argchain will be deleted automatically
+    v8v->ocv.invoke(bName, &rv, errMsg, argchain, argLen) : v8v->ocv.getProp(bName, rv, errMsg, argchain, argLen);
   ::SysFreeString(bName);
+  if (FAILED(hr))
+  {
+    return Nan::ThrowError(NewOleException(hr, errMsg));
+  }
+  V8Variant *o = V8Variant::Unwrap<V8Variant>(vResult);
+  CHECK_V8V(o);
+  o->ocv = rv; // copy rv value
+  
   Handle<Value> result = INSTANCE_CALL(vResult, "toValue", 0, NULL);
   OLETRACEOUT();
   return info.GetReturnValue().Set(result);
-  return;
-done:
-  ::SysFreeString(bName);
-  OLETRACEOUT();
-  return Nan::ThrowTypeError(__FUNCTION__ " failed");
 }
 
 NAN_METHOD(V8Variant::OLECall)
@@ -796,23 +806,17 @@ NAN_METHOD(V8Variant::OLESet)
   OCVariant *argchain = V8Variant::CreateOCVariant(av1);
   if(!argchain)
     return Nan::ThrowTypeError(__FUNCTION__ " the second argument is not valid (null OCVariant)");
-  bool result = false;
   String::Utf8Value u8s(av0);
   BSTR bName = MBCS2BSTR(*u8s);
-  BEVERIFY(done, bName);
-  try{
-    v8v->ocv.putProp(bName, &argchain, 1); // argchain will be deleted automatically
-  }catch(OLE32coreException e){ std::cerr << e.errorMessage(*u8s); goto done;
-  }catch(const char *e){ std::cerr << e << *u8s << std::endl; goto done;
+  if (!bName) return Nan::ThrowError(NewOleException(E_OUTOFMEMORY));
+  std::wstring errMsg;
+  HRESULT hr = v8v->ocv.putProp(bName, errMsg, &argchain, 1); // argchain will be deleted automatically
+  ::SysFreeString(bName);
+  if (FAILED(hr))
+  {
+    return Nan::ThrowError(NewOleException(hr, errMsg));
   }
-  ::SysFreeString(bName);
-  result = true;
   OLETRACEOUT();
-  return info.GetReturnValue().Set(result);
-done:
-  ::SysFreeString(bName);
-  OLETRACEOUT();
-  return Nan::ThrowTypeError(__FUNCTION__ " failed");
 }
 
 NAN_METHOD(V8Variant::OLECallComplete)

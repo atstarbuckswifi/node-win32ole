@@ -53,28 +53,12 @@ extern char *wcs2u8s(const wchar_t *wcs); // UCS2 -> UTF8 (allocate mbs, must fr
 // obsoleted functions
 
 // (without free when use _malloca)
-extern std::string MBCS2UTF8(std::string mbs);
-// (without free when use _malloca)
 extern std::string UTF82MBCS(std::string utf8);
-
-// locale mbs -> Unicode (allocate wcs, must free)
-extern WCHAR *MBCS2WCS(std::string mbs);
-// Unicode -> locale mbs (not free wcs, without free when use _malloca)
-extern std::string WCS2MBCS(WCHAR *wbuf);
 
 // (allocate bstr, must free)
 extern BSTR MBCS2BSTR(std::string str);
 // (not free bstr)
 extern std::string BSTR2MBCS(BSTR bstr);
-
-class OLE32coreException {
-protected:
-  std::string rmsg;
-public:
-  OLE32coreException(std::string rm) : rmsg(rm) {}
-  virtual ~OLE32coreException() {}
-  std::string errorMessage(const char *m=NULL);
-};
 
 class OCVariant {
 public:
@@ -90,14 +74,13 @@ public:
   OCVariant(const wchar_t* str); // allocate and convert to VT_BSTR
   OCVariant& operator=(const OCVariant& other);
   virtual ~OCVariant();
-  void checkOLEresult(std::string msg);
   void Clear();
 protected:
-  HRESULT AutoWrap(int autoType, VARIANT *pvResult, BSTR ptName, OCVariant **argchain=NULL, unsigned argLen = 0);
+  HRESULT AutoWrap(int autoType, VARIANT *pvResult, BSTR ptName, OCVariant **argchain, unsigned argLen, std::wstring& errorMsg);
 public:
-  OCVariant *getProp(BSTR prop, OCVariant **argchain=NULL, unsigned argLen=0);
-  OCVariant *putProp(BSTR prop, OCVariant **argchain=NULL, unsigned argLen = 0);
-  OCVariant *invoke(BSTR method, OCVariant **argchain=NULL, unsigned argLen = 0, bool re=false);
+  HRESULT getProp(BSTR prop, OCVariant& result, std::wstring& errorMsg, OCVariant **argchain = NULL, unsigned argLen = 0);
+  HRESULT putProp(BSTR prop, std::wstring& errorMsg, OCVariant **argchain=NULL, unsigned argLen = 0);
+  HRESULT invoke(BSTR method, OCVariant* result, std::wstring& errorMsg, OCVariant **argchain = NULL, unsigned argLen = 0);
 };
 
 class OLE32core {
@@ -107,9 +90,8 @@ protected:
 public:
   OLE32core() : finalized(true) {}
   virtual ~OLE32core() { if(!finalized) disconnect(); }
-  void checkOLEresult(std::string msg);
-  bool connect(std::string locale);
-  bool disconnect(void);
+  HRESULT connect(std::string locale);
+  HRESULT disconnect(void);
 };
 
 } // namespace ole32core

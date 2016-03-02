@@ -14,6 +14,8 @@ typedef struct _fundamental_attr {
   NAN_METHOD((*func));
 } fundamental_attr;
 
+extern Handle<Value> NewOleException(HRESULT hr, const std::wstring& msg = L"");
+
 class V8Variant : public node::ObjectWrap {
 public:
   static Nan::Persistent<FunctionTemplate> clazz;
