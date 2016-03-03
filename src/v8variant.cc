@@ -23,19 +23,49 @@ namespace node_win32ole {
     av0 = info[0]; \
   }while(0)
 
-Handle<Value> NewOleException(HRESULT hr, const std::wstring& msg)
+Handle<Value> NewOleException(HRESULT hr)
 {
-  Handle<String> hMsg;
-  if (msg.empty())
-  {
-    hMsg = Nan::New<String>((const uint16_t*)errorFromCodeW(hr).c_str()).ToLocalChecked();
-  } else {
-    hMsg = Nan::New<String>((const uint16_t*)msg.c_str()).ToLocalChecked();
-  }
+  Handle<String> hMsg = Nan::New<String>((const uint16_t*)errorFromCodeW(hr).c_str()).ToLocalChecked();
   Local<v8::Value> args[2] = { Nan::New<Uint32>(hr), hMsg };
   Local<Object> target = Nan::New(module_target);
   Handle<Function> function = Handle<Function>::Cast(GET_PROP(target, "OLEException").ToLocalChecked());
   return Nan::NewInstance(function, 2, args).ToLocalChecked();
+}
+
+Handle<Value> NewOleException(HRESULT hr, const ErrorInfo& info)
+{
+  Handle<String> hMsg;
+  if (info.sDescription.empty())
+  {
+    hMsg = Nan::New<String>((const uint16_t*)errorFromCodeW(hr).c_str()).ToLocalChecked();
+  } else {
+    hMsg = Nan::New<String>((const uint16_t*)info.sDescription.c_str()).ToLocalChecked();
+  }
+  if (info.scode)
+  {
+    hr = HRESULT_FROM_WIN32(info.scode);
+  }
+  else if (info.wCode)
+  {
+    hr = info.wCode; // likely a private error code
+  }
+  Local<v8::Value> args[2] = { Nan::New<Uint32>(hr), hMsg };
+  Local<Object> target = Nan::New(module_target);
+  Handle<Function> function = Handle<Function>::Cast(GET_PROP(target, "OLEException").ToLocalChecked());
+  Handle<Object> errorObj = Nan::NewInstance(function, 2, args).ToLocalChecked();
+  if (!info.sSource.empty())
+  {
+    Nan::Set(errorObj, Nan::New("source").ToLocalChecked(), Nan::New((const uint16_t*)info.sSource.c_str()).ToLocalChecked());
+  }
+  if (!info.sHelpFile.empty())
+  {
+    Nan::Set(errorObj, Nan::New("helpFile").ToLocalChecked(), Nan::New((const uint16_t*)info.sHelpFile.c_str()).ToLocalChecked());
+  }
+  if (info.dwHelpContext)
+  {
+    Nan::Set(errorObj, Nan::New("helpContext").ToLocalChecked(), Nan::New((uint32_t)info.dwHelpContext));
+  }
+  return errorObj;
 }
 
 Nan::Persistent<FunctionTemplate> V8Variant::clazz;
@@ -80,11 +110,10 @@ OCVariant *V8Variant::CreateOCVariant(Handle<Value> v)
     // todo: make separate undefined type
     return new OCVariant();
   }
-
-  BEVERIFY(done, !v.IsEmpty());
-  BEVERIFY(done, !v->IsExternal());
-  BEVERIFY(done, !v->IsNativeError());
-  BEVERIFY(done, !v->IsFunction());
+  if (v.IsEmpty() || v->IsExternal() || v->IsNativeError() || v->IsFunction())
+  {
+    return NULL;
+  }
 // VT_USERDEFINED VT_VARIANT VT_BYREF VT_ARRAY more...
   if(v->IsBoolean() || v->IsBooleanObject()){
     return new OCVariant(Nan::To<bool>(v).FromJust());
@@ -147,7 +176,6 @@ OCVariant *V8Variant::CreateOCVariant(Handle<Value> v)
     std::cerr << "[unknown type (not implemented now)]" << std::endl;
     std::cerr.flush();
   }
-done:
   return NULL;
 }
 
@@ -272,7 +300,6 @@ NAN_METHOD(V8Variant::OLEValue)
   default:
     return info.GetReturnValue().Set(VariantToValue(info.This(), v));
   }
-//done:
   OLETRACEOUT();
 }
 
@@ -753,14 +780,14 @@ NAN_METHOD(OLEInvoke)
     argchain[i] = o;
   }
   Handle<Object> vResult = V8Variant::CreateUndefined();
-  std::wstring errMsg;
+  ErrorInfo errInfo;
   OCVariant rv;
   HRESULT hr = isCall ? // argchain will be deleted automatically
-    v8v->ocv.invoke(bName, &rv, errMsg, argchain, argLen) : v8v->ocv.getProp(bName, rv, errMsg, argchain, argLen);
+    v8v->ocv.invoke(bName, &rv, errInfo, argchain, argLen) : v8v->ocv.getProp(bName, rv, errInfo, argchain, argLen);
   ::SysFreeString(bName);
   if (FAILED(hr))
   {
-    return Nan::ThrowError(NewOleException(hr, errMsg));
+    return Nan::ThrowError(NewOleException(hr, errInfo));
   }
   V8Variant *o = V8Variant::Unwrap<V8Variant>(vResult);
   CHECK_V8V(o);
@@ -809,12 +836,12 @@ NAN_METHOD(V8Variant::OLESet)
   String::Utf8Value u8s(av0);
   BSTR bName = MBCS2BSTR(*u8s);
   if (!bName) return Nan::ThrowError(NewOleException(E_OUTOFMEMORY));
-  std::wstring errMsg;
-  HRESULT hr = v8v->ocv.putProp(bName, errMsg, &argchain, 1); // argchain will be deleted automatically
+  ErrorInfo errInfo;
+  HRESULT hr = v8v->ocv.putProp(bName, errInfo, &argchain, 1); // argchain will be deleted automatically
   ::SysFreeString(bName);
   if (FAILED(hr))
   {
-    return Nan::ThrowError(NewOleException(hr, errMsg));
+    return Nan::ThrowError(NewOleException(hr, errInfo));
   }
   OLETRACEOUT();
 }

@@ -32,8 +32,26 @@ NAN_METHOD(Method_printACP) // UTF-8 to MBCS (.ACP)
 //  Nan::HandleScope scope; -- should be implicit in method calls
   if(info.Length() >= 1){
     String::Utf8Value s(info[0]);
-    char *cs = *s;
-    printf(UTF82MBCS(std::string(cs)).c_str());
+    std::string utf8 = *s;
+    std::string p;
+    if (!utf8.empty())
+    {
+      int wlen = MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), (int)utf8.length(), NULL, 0);
+      WCHAR *wbuf = (WCHAR *)_malloca((wlen + 1) * sizeof(WCHAR));
+      *wbuf = L'\0';
+      if (MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), (int)utf8.length(), wbuf, wlen) <= 0) {
+        return Nan::ThrowError(NewOleException(GetLastError()));
+      }
+      int slen = WideCharToMultiByte(CP_ACP, 0, wbuf, wlen, NULL, 0, NULL, NULL);
+      char *sbuf = (char *)_malloca((slen + 1) * sizeof(char));
+      *sbuf = '\0';
+      if (WideCharToMultiByte(CP_ACP, 0, wbuf, wlen, sbuf, slen, NULL, NULL) <= 0) {
+        return Nan::ThrowError(NewOleException(GetLastError()));
+      }
+      sbuf[slen] = '\0';
+      p = sbuf;
+    }
+    printf(p.c_str());
   }
   return info.GetReturnValue().Set(true);
 }

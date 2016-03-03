@@ -57,8 +57,8 @@ string to_s(int num)
 
 wchar_t *u8s2wcs(const char *u8s)
 {
-  size_t u8len = strlen(u8s);
-  size_t wclen = MultiByteToWideChar(CP_UTF8, 0, u8s, u8len, NULL, 0);
+  int u8len = (int)strlen(u8s);
+  int wclen = MultiByteToWideChar(CP_UTF8, 0, u8s, u8len, NULL, 0);
   wchar_t *wcs = (wchar_t *)malloc((wclen + 1) * sizeof(wchar_t));
   wclen = MultiByteToWideChar(CP_UTF8, 0, u8s, u8len, wcs, wclen + 1); // + 1
   wcs[wclen] = L'\0';
@@ -67,7 +67,7 @@ wchar_t *u8s2wcs(const char *u8s)
 
 char *wcs2mbs(const wchar_t *wcs)
 {
-  size_t mblen = WideCharToMultiByte(GetACP(), 0,
+  int mblen = WideCharToMultiByte(GetACP(), 0,
     (LPCWSTR)wcs, -1, NULL, 0, NULL, NULL);
   char *mbs = (char *)malloc((mblen + 1));
   mblen = WideCharToMultiByte(GetACP(), 0,
@@ -78,7 +78,7 @@ char *wcs2mbs(const wchar_t *wcs)
 
 char *wcs2u8s(const wchar_t *wcs)
 {
-  size_t mblen = WideCharToMultiByte(CP_UTF8, 0,
+  int mblen = WideCharToMultiByte(CP_UTF8, 0,
     (LPCWSTR)wcs, -1, NULL, 0, NULL, NULL);
   char *mbs = (char *)malloc((mblen + 1));
   mblen = WideCharToMultiByte(CP_UTF8, 0,
@@ -89,38 +89,8 @@ char *wcs2u8s(const wchar_t *wcs)
 
 // obsoleted functions
 
-// UTF8 -> Unicode -> locale mbs (without free when use _malloca)
-string UTF82MBCS(string utf8)
-{
-  if(utf8 == "") return "";
-  int wlen = MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, NULL, 0);
-  WCHAR *wbuf = (WCHAR *)_malloca((wlen + 1) * sizeof(WCHAR));
-  if(wbuf == NULL){
-    throw "_malloca failed for UTF8 to UNICODE";
-    return "";
-  }
-  *wbuf = L'\0';
-  if(MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, wbuf, wlen) <= 0){
-    throw "can't convert UTF8 to UNICODE";
-    return "";
-  }
-  int slen = WideCharToMultiByte(CP_ACP, 0, wbuf, -1, NULL, 0, NULL, NULL);
-  char *sbuf = (char *)_malloca((slen + 1) * sizeof(char));
-  if(sbuf == NULL){
-    throw "_malloca failed for UNICODE to MBCS";
-    return "";
-  }
-  *sbuf = '\0';
-  if(WideCharToMultiByte(CP_ACP, 0, wbuf, -1, sbuf, slen, NULL, NULL) <= 0){
-    throw "can't convert UNICODE to MBCS";
-    return "";
-  }
-  sbuf[slen] = '\0';
-  return sbuf;
-}
-
 // locale mbs -> BSTR (allocate bstr, must free)
-BSTR MBCS2BSTR(string str)
+BSTR MBCS2BSTR(const string& str)
 {
   BSTR bstr;
   size_t len = str.length();
@@ -201,7 +171,7 @@ OCVariant::OCVariant(BSTR bstrVal)
   DISPFUNCOUT();
 }
 
-OCVariant::OCVariant(string str)
+OCVariant::OCVariant(const string& str)
 {
   DISPFUNCIN();
   VariantInit(&v);
@@ -248,7 +218,7 @@ void OCVariant::Clear()
 }
 
 // AutoWrap() - Automation helper function...
-HRESULT OCVariant::AutoWrap(int autoType, VARIANT *pvResult, BSTR ptName, OCVariant **argchain, unsigned argLen, wstring& errorMsg)
+HRESULT OCVariant::AutoWrap(int autoType, VARIANT *pvResult, BSTR ptName, OCVariant **argchain, unsigned argLen, ErrorInfo& errorInfo)
 {
   // bug ? comment (see old ole32core.cpp project)
   // execute at the first time to safety free argchain
@@ -290,6 +260,7 @@ HRESULT OCVariant::AutoWrap(int autoType, VARIANT *pvResult, BSTR ptName, OCVari
     dp.rgdispidNamedArgs = &dispidNamed;
   }
   EXCEPINFO exceptInfo;
+  memset(&exceptInfo, sizeof(exceptInfo), 0);
   // Make the call!
   hr = v.pdispVal->Invoke(dispID, IID_NULL,
     LOCALE_USER_DEFAULT, autoType, &dp, pvResult, &exceptInfo, NULL); // or _SYSTEM_ ?
@@ -300,38 +271,55 @@ HRESULT OCVariant::AutoWrap(int autoType, VARIANT *pvResult, BSTR ptName, OCVari
   {
     // cleanup the error message a bit
     if (exceptInfo.pfnDeferredFillIn) exceptInfo.pfnDeferredFillIn(&exceptInfo);
-    if (exceptInfo.bstrDescription) errorMsg = wstring(exceptInfo.bstrDescription, SysStringLen(exceptInfo.bstrDescription));
+    errorInfo.wCode = exceptInfo.wCode;
+    errorInfo.scode = exceptInfo.scode;
+    errorInfo.dwHelpContext = exceptInfo.dwHelpContext;
+    if (exceptInfo.bstrDescription)
+    {
+      errorInfo.sDescription = wstring(exceptInfo.bstrDescription, SysStringLen(exceptInfo.bstrDescription));
+      SysFreeString(exceptInfo.bstrDescription);
+    }
+    if (exceptInfo.bstrSource)
+    {
+      errorInfo.sSource = wstring(exceptInfo.bstrSource, SysStringLen(exceptInfo.bstrSource));
+      SysFreeString(exceptInfo.bstrSource);
+    }
+    if (exceptInfo.bstrHelpFile)
+    {
+      errorInfo.sHelpFile = wstring(exceptInfo.bstrHelpFile, SysStringLen(exceptInfo.bstrHelpFile));
+      SysFreeString(exceptInfo.bstrHelpFile);
+    }
     if (exceptInfo.scode) hr = HRESULT_FROM_WIN32(exceptInfo.scode);
   }
   return hr;
 }
 
-HRESULT OCVariant::getProp(BSTR prop, OCVariant& result, wstring& errorMsg, OCVariant **argchain, unsigned argLen)
+HRESULT OCVariant::getProp(BSTR prop, OCVariant& result, ErrorInfo& errorInfo, OCVariant **argchain, unsigned argLen)
 {
-  return AutoWrap(DISPATCH_PROPERTYGET, &result.v, prop, argchain, argLen, errorMsg); // distinguish METHOD
+  return AutoWrap(DISPATCH_PROPERTYGET, &result.v, prop, argchain, argLen, errorInfo); // distinguish METHOD
   // may be called with DISPATCH_PROPERTYGET|DISPATCH_METHOD
   // 'METHOD' may be called only with DISPATCH_PROPERTYGET
   // but 'PROPERTY' must not be called only with DISPATCH_METHOD
 }
 
-HRESULT OCVariant::putProp(BSTR prop, wstring& errorMsg, OCVariant **argchain, unsigned argLen)
+HRESULT OCVariant::putProp(BSTR prop, ErrorInfo& errorInfo, OCVariant **argchain, unsigned argLen)
 {
-  return AutoWrap(DISPATCH_PROPERTYPUT, NULL, prop, argchain, argLen, errorMsg);
+  return AutoWrap(DISPATCH_PROPERTYPUT, NULL, prop, argchain, argLen, errorInfo);
 }
 
-HRESULT OCVariant::invoke(BSTR method, OCVariant* result, wstring& errorMsg, OCVariant **argchain, unsigned argLen)
+HRESULT OCVariant::invoke(BSTR method, OCVariant* result, ErrorInfo& errorInfo, OCVariant **argchain, unsigned argLen)
 {
   if(!result){
-    return AutoWrap(DISPATCH_METHOD, NULL, method, argchain, argLen, errorMsg);
+    return AutoWrap(DISPATCH_METHOD, NULL, method, argchain, argLen, errorInfo);
   }else{
-    return AutoWrap(DISPATCH_METHOD | DISPATCH_PROPERTYGET, &result->v, method, argchain, argLen, errorMsg);
+    return AutoWrap(DISPATCH_METHOD | DISPATCH_PROPERTYGET, &result->v, method, argchain, argLen, errorInfo);
     // may be called with DISPATCH_PROPERTYGET|DISPATCH_METHOD
     // 'METHOD' may be called only with DISPATCH_PROPERTYGET
     // but 'PROPERTY' must not be called only with DISPATCH_METHOD
   }
 }
 
-HRESULT OLE32core::connect(string locale)
+HRESULT OLE32core::connect(const string& locale)
 {
   if(!finalized) return S_FALSE;
   oldlocale = setlocale(LC_ALL, NULL);

@@ -12,21 +12,21 @@ namespace node_win32ole {
 
 #define CHECK_OCV(ocv) do{ \
     if(!(ocv)) \
-      return Nan::ThrowTypeError( __FUNCTION__" can't access to V8Variant (null OCVariant)"); \
+      return Nan::ThrowError( __FUNCTION__" can't access to V8Variant (null OCVariant)"); \
   }while(0)
 #define CHECK_OCV_UNDEFINED(ocv) do{ \
     if(!(ocv)) \
-      Nan::ThrowTypeError( __FUNCTION__" can't access to V8Variant (null OCVariant)"); \
+      Nan::ThrowError( __FUNCTION__" can't access to V8Variant (null OCVariant)"); \
       return Nan::Undefined(); \
   }while(0)
 
 #define CHECK_V8V(v8v) do{ \
     if(!(v8v)) \
-      return Nan::ThrowTypeError( __FUNCTION__" can't access to V8Variant"); \
+      return Nan::ThrowError( __FUNCTION__" can't access to V8Variant"); \
   }while(0)
 #define CHECK_V8V_UNDEFINED(v8v) do{ \
     if(!(v8v)) \
-      Nan::ThrowTypeError( __FUNCTION__" can't access to V8Variant"); \
+      Nan::ThrowError( __FUNCTION__" can't access to V8Variant"); \
       return Nan::Undefined(); \
   }while(0)
 

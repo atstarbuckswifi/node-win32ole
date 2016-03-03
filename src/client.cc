@@ -29,7 +29,7 @@ NAN_METHOD(Client::New)
 {
   DISPFUNCIN();
   if(!info.IsConstructCall())
-    return Nan::ThrowTypeError("Use the new operator to create new Client objects");
+    return Nan::ThrowError("Use the new operator to create new Client objects");
   std::string cstr_locale(".ACP"); // default
   if(info.Length() >= 1){
     if(!info[0]->IsString())
@@ -40,7 +40,7 @@ NAN_METHOD(Client::New)
   Local<Object> thisObject = info.This();
   Client *cl = new Client(); // must catch exception
   if (!cl)
-    return Nan::ThrowTypeError("Can't create new Client object (null OLE32core)");
+    return Nan::ThrowError("Can't create new Client object (null OLE32core)");
   cl->Wrap(thisObject); // InternalField[0]
   HRESULT cnresult = cl->oc.connect(cstr_locale);
   if (FAILED(cnresult))
@@ -54,31 +54,30 @@ NAN_METHOD(Client::New)
 NAN_METHOD(Client::Dispatch)
 {
   DISPFUNCIN();
-  BEVERIFY(done, info.Length() >= 1);
-  BEVERIFY(done, info[0]->IsString());
-  if (false)
+  if (info.Length() < 1 || !info[0]->IsString())
   {
-done:
-    DISPFUNCOUT();
-    return Nan::ThrowTypeError("Dispatch failed");
+    return Nan::ThrowTypeError("Argument 1 is not a String");
   }
   wchar_t *wcs;
   {
     String::Utf8Value u8s(info[0]); // must create here
     wcs = u8s2wcs(*u8s);
+    if (!wcs) return Nan::ThrowError(NewOleException(GetLastError()));
   }
-  BEVERIFY(done, wcs);
 #ifdef DEBUG
   char *mbs = wcs2mbs(wcs);
-  if(!mbs) free(wcs);
-  BEVERIFY(done, mbs);
+  if (!mbs)
+  {
+    free(wcs);
+    return Nan::ThrowError(NewOleException(GetLastError()));
+  }
   fprintf(stderr, "ProgID: %s\n", mbs);
   free(mbs);
 #endif
   CLSID clsid;
   HRESULT hr = CLSIDFromProgID(wcs, &clsid);
   free(wcs);
-  BEVERIFY(done, !FAILED(hr));
+  if(FAILED(hr)) return Nan::ThrowError(NewOleException(hr));
 #ifdef DEBUG
   fprintf(stderr, "clsid:"); // 00024500-0000-0000-c000-000000000046 (Excel) ok
   for(int i = 0; i < sizeof(CLSID); ++i)
@@ -86,9 +85,10 @@ done:
   fprintf(stderr, "\n");
 #endif
   Handle<Object> vApp = V8Variant::CreateUndefined();
-  BEVERIFY(done, !vApp.IsEmpty());
-  BEVERIFY(done, !vApp->IsUndefined());
-  BEVERIFY(done, vApp->IsObject());
+  if (vApp.IsEmpty() || vApp->IsUndefined() || !vApp->IsObject())
+  {
+    return Nan::ThrowError("Unable to create return value placeholder");
+  }
   V8Variant *v8v = V8Variant::Unwrap<V8Variant>(vApp);
   CHECK_V8V(v8v);
   OCVariant *app = &v8v->ocv;
@@ -114,8 +114,8 @@ done:
     ctx |= CLSCTX_ACTIVATE_64_BIT_SERVER; // 64bit COM server on 32bit OS
 #endif
     hr = CoCreateInstance(clsid, NULL, ctx, riid, (void **)&app->v.pdispVal);
+    if (FAILED(hr)) return Nan::ThrowError(NewOleException(hr));
   }
-  if (FAILED(hr)) return Nan::ThrowError(NewOleException(hr));
   DISPFUNCOUT();
   return info.GetReturnValue().Set(vApp);
 }

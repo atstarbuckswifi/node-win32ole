@@ -30,24 +30,22 @@ void timeval_gettimeofday(struct timeval *ptv)
 
 NAN_METHOD(Method_gettimeofday)
 {
-  boolean result = false;
-  BEVERIFY(done, info.Length() >= 2);
+  if (info.Length() < 1 || !info[0]->IsObject())
+  {
+    return Nan::ThrowTypeError("Argument 1 is not an object");
+  }
   struct timeval tv;
   timeval_gettimeofday(&tv);
-  BEVERIFY(done, info[0]->IsObject());
   Handle<Object> buf = Nan::To<Object>(info[0]).ToLocalChecked();
-  BEVERIFY(done, node::Buffer::Length(buf) == sizeof(struct timeval));
-  memcpy(node::Buffer::Data(buf), &tv, sizeof(struct timeval));
-  result = true;
-done:
-  return info.GetReturnValue().Set(result);
+  if(node::Buffer::Length(buf) == sizeof(struct timeval))
+  {
+    memcpy(node::Buffer::Data(buf), &tv, sizeof(struct timeval));
+  }
 }
 
 NAN_METHOD(Method_sleep) // ms, bool: msg, bool: \n
 {
-  boolean result = false;
-  BEVERIFY(done, info.Length() >= 1);
-  if(!info[0]->IsInt32())
+  if(info.Length() < 1 || !info[0]->IsInt32())
     return Nan::ThrowTypeError("type of argument 1 must be Int32");
   long ms = Nan::To<int32_t>(info[0]).FromJust();
   bool msg = false;
@@ -78,9 +76,6 @@ NAN_METHOD(Method_sleep) // ms, bool: msg, bool: \n
         + (double)ms / 1000.) break;
     }
   }
-  result = true;
-done:
-  return info.GetReturnValue().Set(result);
 }
 
 } // namespace node_win32ole

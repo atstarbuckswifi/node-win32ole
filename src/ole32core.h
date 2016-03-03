@@ -42,8 +42,6 @@ namespace ole32core {
 extern std::string errorFromCode(DWORD code);
 extern std::wstring errorFromCodeW(DWORD code);
 extern BOOL chkerr(BOOL b, char *m, int n, char *f, char *e);
-#define BEVERIFY(y, x) if(!BVERIFY(x)){ goto y; }
-#define DEVERIFY(y, x) if(!DVERIFY(x)){ goto y; }
 
 extern std::string to_s(int num);
 extern wchar_t *u8s2wcs(const char *u8s); // UTF8 -> UCS2 (allocate wcs, must free)
@@ -52,13 +50,19 @@ extern char *wcs2u8s(const wchar_t *wcs); // UCS2 -> UTF8 (allocate mbs, must fr
 
 // obsoleted functions
 
-// (without free when use _malloca)
-extern std::string UTF82MBCS(std::string utf8);
-
 // (allocate bstr, must free)
-extern BSTR MBCS2BSTR(std::string str);
+extern BSTR MBCS2BSTR(const std::string& str);
 // (not free bstr)
 extern std::string BSTR2MBCS(BSTR bstr);
+
+struct ErrorInfo {
+  WORD  wCode;
+  std::wstring sSource;
+  std::wstring sDescription;
+  std::wstring sHelpFile;
+  DWORD dwHelpContext;
+  SCODE scode;
+};
 
 class OCVariant {
 public:
@@ -70,17 +74,17 @@ public:
   OCVariant(long lVal, VARTYPE type = VT_I4); // VT_I4
   OCVariant(double dblVal, VARTYPE type = VT_R8); // VT_R8
   OCVariant(BSTR bstrVal); // VT_BSTR (previous allocated)
-  OCVariant(std::string str); // allocate and convert to VT_BSTR
+  OCVariant(const std::string& str); // allocate and convert to VT_BSTR
   OCVariant(const wchar_t* str); // allocate and convert to VT_BSTR
   OCVariant& operator=(const OCVariant& other);
   virtual ~OCVariant();
   void Clear();
 protected:
-  HRESULT AutoWrap(int autoType, VARIANT *pvResult, BSTR ptName, OCVariant **argchain, unsigned argLen, std::wstring& errorMsg);
+  HRESULT AutoWrap(int autoType, VARIANT *pvResult, BSTR ptName, OCVariant **argchain, unsigned argLen, ErrorInfo& errorInfo);
 public:
-  HRESULT getProp(BSTR prop, OCVariant& result, std::wstring& errorMsg, OCVariant **argchain = NULL, unsigned argLen = 0);
-  HRESULT putProp(BSTR prop, std::wstring& errorMsg, OCVariant **argchain=NULL, unsigned argLen = 0);
-  HRESULT invoke(BSTR method, OCVariant* result, std::wstring& errorMsg, OCVariant **argchain = NULL, unsigned argLen = 0);
+  HRESULT getProp(BSTR prop, OCVariant& result, ErrorInfo& errorInfo, OCVariant **argchain = NULL, unsigned argLen = 0);
+  HRESULT putProp(BSTR prop, ErrorInfo& errorInfo, OCVariant **argchain=NULL, unsigned argLen = 0);
+  HRESULT invoke(BSTR method, OCVariant* result, ErrorInfo& errorInfo, OCVariant **argchain = NULL, unsigned argLen = 0);
 };
 
 class OLE32core {
@@ -90,7 +94,7 @@ protected:
 public:
   OLE32core() : finalized(true) {}
   virtual ~OLE32core() { if(!finalized) disconnect(); }
-  HRESULT connect(std::string locale);
+  HRESULT connect(const std::string& locale);
   HRESULT disconnect(void);
 };
 
