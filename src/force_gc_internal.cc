@@ -21,7 +21,6 @@ NAN_METHOD(Method_force_gc_internal)
   int flags = (int)info[0]->Int32Value();
   while (!Nan::IdleNotification(100)){}
   std::cerr << "-out: " __FUNCTION__ << std::endl;
-  return info.GetReturnValue().Set(true);
 }
 
 } // namespace node_win32ole

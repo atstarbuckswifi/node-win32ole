@@ -53,7 +53,6 @@ NAN_METHOD(Method_printACP) // UTF-8 to MBCS (.ACP)
     }
     printf(p.c_str());
   }
-  return info.GetReturnValue().Set(true);
 }
 
 NAN_METHOD(Method_print) // through (as ASCII)
@@ -64,7 +63,6 @@ NAN_METHOD(Method_print) // through (as ASCII)
     char *cs = *s;
     printf(cs); // printf("%s\n", cs);
   }
-  return info.GetReturnValue().Set(true);
 }
 
 } // namespace node_win32ole
