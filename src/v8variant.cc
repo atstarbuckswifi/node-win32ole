@@ -670,37 +670,45 @@ NAN_METHOD(V8Variant::OLEPrimitiveValue) {
   V8Variant *v8v = V8Variant::Unwrap<V8Variant>(info.This());
   CHECK_V8V(v8v);
   VARIANT& v = v8v->ocv.v;
-  if (v.vt == VT_DISPATCH) {
-    IDispatch *dispatch = v.pdispVal;
-    if (dispatch == NULL) {
-      return info.GetReturnValue().SetNull();
-    }
-    Local<Object> object = Nan::New<Object>();
-    ITypeInfo *typeinfo = NULL;
-    HRESULT hr = dispatch->GetTypeInfo(0, LOCALE_USER_DEFAULT, &typeinfo);
-    if (typeinfo) {
-      TYPEATTR* typeattr;
-      BASSERT(SUCCEEDED(typeinfo->GetTypeAttr(&typeattr)));
-      for (int i = 0; i < typeattr->cFuncs; i++) {
-        FUNCDESC *funcdesc;
-        typeinfo->GetFuncDesc(i, &funcdesc);
-        if (funcdesc->invkind != INVOKE_FUNC) {
-          Nan::Set(object, Nan::New(GetName(typeinfo, funcdesc->memid)).ToLocalChecked(), Nan::New("Function").ToLocalChecked());
-        }
-        typeinfo->ReleaseFuncDesc(funcdesc);
-      }
-      for (int i = 0; i < typeattr->cVars; i++) {
-        VARDESC *vardesc;
-        typeinfo->GetVarDesc(i, &vardesc);
-        Nan::Set(object, Nan::New(GetName(typeinfo, vardesc->memid)).ToLocalChecked(), Nan::New("Variable").ToLocalChecked());
-        typeinfo->ReleaseVarDesc(vardesc);
-      }
-      typeinfo->ReleaseTypeAttr(typeattr);
-    }
-    return info.GetReturnValue().Set(object);
-  } else {
-    V8Variant::OLEValue(info);
+  IDispatch* dispatch = NULL;
+  switch (v.vt)
+  {
+  case VT_DISPATCH:
+    dispatch = v.pdispVal;
+    break;
+  case VT_DISPATCH | VT_BYREF:
+    if (!v.ppdispVal) return info.GetReturnValue().SetUndefined(); // really shouldn't happen
+    dispatch = *v.ppdispVal;
+    break;
+  default:
+    return info.GetReturnValue().Set(VariantToValue(info.This(), v));
   }
+  if (dispatch == NULL) {
+    return info.GetReturnValue().SetNull();
+  }
+  Local<Object> object = Nan::New<Object>();
+  ITypeInfo *typeinfo = NULL;
+  HRESULT hr = dispatch->GetTypeInfo(0, LOCALE_USER_DEFAULT, &typeinfo);
+  if (typeinfo) {
+    TYPEATTR* typeattr;
+    BASSERT(SUCCEEDED(typeinfo->GetTypeAttr(&typeattr)));
+    for (int i = 0; i < typeattr->cFuncs; i++) {
+      FUNCDESC *funcdesc;
+      typeinfo->GetFuncDesc(i, &funcdesc);
+      if (funcdesc->invkind != INVOKE_FUNC) {
+        Nan::Set(object, Nan::New(GetName(typeinfo, funcdesc->memid)).ToLocalChecked(), Nan::New("Function").ToLocalChecked());
+      }
+      typeinfo->ReleaseFuncDesc(funcdesc);
+    }
+    for (int i = 0; i < typeattr->cVars; i++) {
+      VARDESC *vardesc;
+      typeinfo->GetVarDesc(i, &vardesc);
+      Nan::Set(object, Nan::New(GetName(typeinfo, vardesc->memid)).ToLocalChecked(), Nan::New("Variable").ToLocalChecked());
+      typeinfo->ReleaseVarDesc(vardesc);
+    }
+    typeinfo->ReleaseTypeAttr(typeattr);
+  }
+  return info.GetReturnValue().Set(object);
 }
 
 Handle<Object> V8Variant::CreateUndefined(void)
@@ -779,7 +787,6 @@ NAN_METHOD(OLEInvoke)
     CHECK_OCV(o);
     argchain[i] = o;
   }
-  Handle<Object> vResult = V8Variant::CreateUndefined();
   ErrorInfo errInfo;
   OCVariant rv;
   HRESULT hr = isCall ? // argchain will be deleted automatically
@@ -789,13 +796,13 @@ NAN_METHOD(OLEInvoke)
   {
     return Nan::ThrowError(NewOleException(hr, errInfo));
   }
-  V8Variant *o = V8Variant::Unwrap<V8Variant>(vResult);
-  CHECK_V8V(o);
-  o->ocv = rv; // copy rv value
-  
-  Handle<Value> result = INSTANCE_CALL(vResult, "toValue", 0, NULL);
+//  Handle<Value> result = INSTANCE_CALL(vResult, "toValue", 0, NULL);
+  Local<Value> vResult = V8Variant::VariantToValue(info.This(), rv.v);
   OLETRACEOUT();
-  return info.GetReturnValue().Set(result);
+  if (!vResult->IsUndefined())
+  {
+    return info.GetReturnValue().Set(vResult);
+  }
 }
 
 NAN_METHOD(V8Variant::OLECall)

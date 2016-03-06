@@ -41,6 +41,7 @@ public:
   static NAN_PROPERTY_GETTER(OLEGetAttr);
   static NAN_PROPERTY_SETTER(OLESetAttr);
   static NAN_METHOD(Finalize);
+  static Local<Value> VariantToValue(Handle<Object> thisObject, const VARIANT& ocv);
 public:
   V8Variant() : finalized(false), property_carryover() {}
   ~V8Variant() { if(!finalized) Finalize(); }
@@ -49,7 +50,6 @@ protected:
   static void Dispose(const Nan::WeakCallbackInfo<ole32core::OCVariant> &data);
   void Finalize();
   static Local<Date> OLEDateToObject(const DATE& dt);
-  static Local<Value> VariantToValue(Handle<Object> thisObject, const VARIANT& ocv);
   static Local<Value> ArrayToValue(Handle<Object> thisObject, const SAFEARRAY& a);
   static Local<Value> ArrayToValueSlow(Handle<Object> thisObject, const SAFEARRAY& a, VARTYPE vt, LONG* idices, unsigned numIdx);
   static Local<Value> ArrayPrimitiveToValue(Handle<Object> thisObject, void* loc, VARTYPE vt, unsigned cbElements, unsigned idx);
