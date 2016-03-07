@@ -16,40 +16,26 @@ namespace node_win32ole {
   }while(0)
 #define CHECK_OCV_UNDEFINED(ocv) do{ \
     if(!(ocv)) \
+    { \
       Nan::ThrowError( __FUNCTION__" can't access to V8Variant (null OCVariant)"); \
       return Nan::Undefined(); \
+    } \
   }while(0)
 
-#define CHECK_V8V(v8v) do{ \
-    if(!(v8v)) \
-      return Nan::ThrowError( __FUNCTION__" can't access to V8Variant"); \
+#define CHECK_V8(cls,v8) do{ \
+    if(!(v8)) \
+      return Nan::ThrowError( __FUNCTION__ " can't access to " #cls); \
   }while(0)
-#define CHECK_V8V_UNDEFINED(v8v) do{ \
-    if(!(v8v)) \
-      Nan::ThrowError( __FUNCTION__" can't access to V8Variant"); \
+#define CHECK_V8_UNDEFINED(cls,v8) do{ \
+    if(!(v8)) \
+    { \
+      Nan::ThrowError( __FUNCTION__ " can't access to " #cls); \
       return Nan::Undefined(); \
+    } \
   }while(0)
 
 #if(DEBUG)
 #define OLETRACEIN() BDISPFUNCIN()
-#define OLETRACEVT(th) do{ \
-    V8Variant *v8v = V8Variant::Unwrap<V8Variant>(th); \
-    if(!v8v){ std::cerr << "*** V8Variant is NULL ***"; std::cerr.flush(); } \
-    CHECK_V8V(v8v); \
-    OCVariant *ocv = &v8v->ocv; \
-    std::cerr << "0x" << std::setw(8) << std::left << std::hex << ocv << ":"; \
-    std::cerr << "vt=" << ocv->v.vt << ":"; \
-    std::cerr.flush(); \
-  }while(0)
-#define OLETRACEVT_UNDEFINED(th) do{ \
-    V8Variant *v8v = V8Variant::Unwrap<V8Variant>(th); \
-    if(!v8v){ std::cerr << "*** V8Variant is NULL ***"; std::cerr.flush(); } \
-    CHECK_V8V_UNDEFINED(v8v); \
-    OCVariant *ocv = &v8v->ocv; \
-    std::cerr << "0x" << std::setw(8) << std::left << std::hex << ocv << ":"; \
-    std::cerr << "vt=" << ocv->v.vt << ":"; \
-    std::cerr.flush(); \
-  }while(0)
 #define OLETRACEARG(v) do{ \
     std::cerr << (v->IsObject() ? "OBJECT" : *String::Utf8Value(v)) << ","; \
   }while(0)
@@ -63,36 +49,14 @@ namespace node_win32ole {
   }while(0)
 #define OLETRACEFLUSH() do{ std::cerr<<std::endl; std::cerr.flush(); }while(0)
 #define OLETRACEOUT() BDISPFUNCOUT()
-#define OLE_PROCESS_CARRY_OVER(th) do{ \
-    V8Variant *v8v = node::ObjectWrap::Unwrap<V8Variant>(th); \
-    if(v8v->property_carryover.empty()) break; \
-    Handle<Value> r = V8Variant::OLEFlushCarryOver(th); \
-    if(r->IsUndefined()) return; \
-    if(!r->IsObject()){ \
-      std::cerr << "** CarryOver primitive ** " << __FUNCTION__ << std::endl; \
-      std::cerr.flush(); \
-      return info.GetReturnValue().Set(r); \
-    } \
-    th = Nan::To<Object>(r).ToLocalChecked(); \
-  }while(0)
 #else
 #define OLETRACEIN()
-#define OLETRACEVT(th)
-#define OLETRACEVT_UNDEFINED(th)
 #define OLETRACEARG(v)
 #define OLETRACEPREARGV(sargs)
 #define OLETRACEARGV()
 #define OLETRACEARGS()
 #define OLETRACEFLUSH()
 #define OLETRACEOUT()
-#define OLE_PROCESS_CARRY_OVER(th) do{ \
-    V8Variant *v8v = node::ObjectWrap::Unwrap<V8Variant>(th); \
-    if(v8v->property_carryover.empty()) break; \
-    Handle<Value> r = V8Variant::OLEFlushCarryOver(th); \
-    if(r->IsUndefined()) return; \
-    if(!r->IsObject()) return info.GetReturnValue().Set(r); \
-    th = Nan::To<Object>(r).ToLocalChecked(); \
-  }while(0)
 #endif
 
 #define GET_PROP(obj, prop) Nan::Get((obj), Nan::New<String>(prop).ToLocalChecked())

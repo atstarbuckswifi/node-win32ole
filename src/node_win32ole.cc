@@ -9,6 +9,8 @@
 #include "node_win32ole.h"
 #include "client.h"
 #include "v8variant.h"
+#include "v8dispatch.h"
+#include "v8dispmember.h"
 
 using namespace v8;
 using namespace ole32core;
@@ -76,6 +78,8 @@ NAN_MODULE_INIT(init)
   Nan::HandleScope scope;
   module_target.Reset(target);
   V8Variant::Init(target);
+  V8Dispatch::Init(target);
+  V8DispMember::Init(target);
   Client::Init(target);
   Nan::ForceSet(target, Nan::New("VERSION").ToLocalChecked(),
     Nan::New("0.0.0 (will be set later)").ToLocalChecked(),

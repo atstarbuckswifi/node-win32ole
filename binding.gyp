@@ -12,6 +12,8 @@
         'src/force_gc_internal.cc',
         'src/client.cc',
         'src/v8variant.cc',
+        'src/v8dispatch.cc',
+        'src/v8dispmember.cc',
         'src/ole32core.cpp'
       ],
       'dependencies': [

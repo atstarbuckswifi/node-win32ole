@@ -3,6 +3,7 @@
 */
 
 #include "client.h"
+#include "v8dispatch.h"
 #include "v8variant.h"
 
 using namespace v8;
@@ -84,26 +85,24 @@ NAN_METHOD(Client::Dispatch)
     fprintf(stderr, " %02x", ((unsigned char *)&clsid)[i]);
   fprintf(stderr, "\n");
 #endif
-  Handle<Object> vApp = V8Variant::CreateUndefined();
+  Handle<Object> vApp = V8Dispatch::CreateNew(NULL);
   if (vApp.IsEmpty() || vApp->IsUndefined() || !vApp->IsObject())
   {
     return Nan::ThrowError("Unable to create return value placeholder");
   }
-  V8Variant *v8v = V8Variant::Unwrap<V8Variant>(vApp);
-  CHECK_V8V(v8v);
-  OCVariant *app = &v8v->ocv;
-  app->v.vt = VT_DISPATCH;
+  V8Dispatch *v8d = V8Dispatch::Unwrap<V8Dispatch>(vApp);
+  CHECK_V8(V8Dispatch, v8d);
+  OCDispatch *app = &v8d->ocd;
   // When 'CoInitialize(NULL)' is not called first (and on the same instance),
   // next functions will return many errors.
   // (old style) GetActiveObject() returns 0x000036b7
   //   The requested lookup key was not found in any active activation context.
   // (OLE2) CoCreateInstance() returns 0x000003f0
   //   An attempt was made to reference a token that does not exist.
-  REFIID riid = IID_IDispatch; // can't connect to Excel etc with IID_IUnknown
   // C -> C++ changes types (&clsid -> clsid, &IID_IDispatch -> IID_IDispatch)
   // options (CLSCTX_INPROC_SERVER CLSCTX_INPROC_HANDLER CLSCTX_LOCAL_SERVER)
   DWORD ctx = CLSCTX_INPROC_SERVER|CLSCTX_LOCAL_SERVER;
-  hr = CoCreateInstance(clsid, NULL, ctx, riid, (void **)&app->v.pdispVal);
+  hr = CoCreateInstance(clsid, NULL, ctx, IID_IDispatch, (void **)&app->disp);
   if(FAILED(hr)){
     // Retry with WOW6432 bridge option.
     // This may not be a right way, but better.
@@ -113,7 +112,7 @@ NAN_METHOD(Client::Dispatch)
 #else
     ctx |= CLSCTX_ACTIVATE_64_BIT_SERVER; // 64bit COM server on 32bit OS
 #endif
-    hr = CoCreateInstance(clsid, NULL, ctx, riid, (void **)&app->v.pdispVal);
+    hr = CoCreateInstance(clsid, NULL, ctx, IID_IDispatch, (void **)&app->disp);
     if (FAILED(hr)) return Nan::ThrowError(NewOleException(hr));
   }
   DISPFUNCOUT();

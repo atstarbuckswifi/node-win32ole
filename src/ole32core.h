@@ -79,12 +79,24 @@ public:
   OCVariant& operator=(const OCVariant& other);
   virtual ~OCVariant();
   void Clear();
-protected:
-  HRESULT AutoWrap(int autoType, VARIANT *pvResult, BSTR ptName, OCVariant **argchain, unsigned argLen, ErrorInfo& errorInfo);
+};
+
+class OCDispatch {
 public:
-  HRESULT getProp(BSTR prop, OCVariant& result, ErrorInfo& errorInfo, OCVariant **argchain = NULL, unsigned argLen = 0);
-  HRESULT putProp(BSTR prop, ErrorInfo& errorInfo, OCVariant **argchain=NULL, unsigned argLen = 0);
-  HRESULT invoke(BSTR method, OCVariant* result, ErrorInfo& errorInfo, OCVariant **argchain = NULL, unsigned argLen = 0);
+  IDispatch* disp;
+public:
+  OCDispatch(); // result
+  OCDispatch(IDispatch* d);
+  OCDispatch(const OCDispatch &s); // copy
+  OCDispatch& operator=(const OCDispatch& other);
+  virtual ~OCDispatch();
+  void Clear();
+protected:
+  HRESULT AutoWrap(int autoType, VARIANT *pvResult, DISPID propID, OCVariant **argchain, unsigned argLen, ErrorInfo& errorInfo);
+public:
+  HRESULT getProp(DISPID propID, OCVariant& result, ErrorInfo& errorInfo, OCVariant **argchain = NULL, unsigned argLen = 0);
+  HRESULT putProp(DISPID propID, ErrorInfo& errorInfo, OCVariant **argchain = NULL, unsigned argLen = 0);
+  HRESULT invoke(DISPID propID, OCVariant* result, ErrorInfo& errorInfo, OCVariant **argchain = NULL, unsigned argLen = 0);
 };
 
 class OLE32core {
