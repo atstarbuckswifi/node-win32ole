@@ -24,7 +24,6 @@ void V8Dispatch::Init(Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE target)
   Nan::SetPrototypeMethod(t, "valueOf", OLEPrimitiveValue);
   Nan::SetPrototypeMethod(t, "toString", OLEStringValue);
   Nan::SetPrototypeMethod(t, "toLocaleString", OLELocaleStringValue);
-//  Nan::SetPrototypeMethod(t, "toJSON", OLEPrimitiveValue);
 //  Nan::SetPrototypeMethod(t, "New", New);
 /*
  In ParseUnaryExpression() < v8/src/parser.cc >
@@ -62,10 +61,7 @@ Local<Value> V8Dispatch::resolveValueChain(Local<Object> thisObject, const char*
   CHECK_V8_UNDEFINED(V8Dispatch, vThis);
   Local<Value> vResult = vThis->OLEGet(DISPID_VALUE);
   if (vResult->IsUndefined()) return Nan::Undefined();
-  if (vResult->IsObject())
-  {
-    vResult = INSTANCE_CALL(Nan::To<Object>(vResult).ToLocalChecked(), prop, 0, NULL);
-  }
+  vResult = INSTANCE_CALL(Nan::To<Object>(vResult).ToLocalChecked(), prop, 0, NULL);
   return vResult;
 }
 
@@ -151,8 +147,8 @@ Local<Value> V8Dispatch::OLECall(DISPID propID, int argc, Local<Value> argv[])
   OLETRACEIN();
   OCVariant **argchain = argc ? (OCVariant**)alloca(sizeof(OCVariant*) * argc) : NULL;
   for (int i = 0; i < argc; ++i) {
-    OCVariant *o = V8Variant::CreateOCVariant(argv[i]);
-    CHECK_OCV_UNDEFINED(o);
+    OCVariant *o = V8Variant::ValueToVariant(argv[i]);
+    if (!o) return Nan::Undefined();
     argchain[i] = o;
   }
   ErrorInfo errInfo;
@@ -163,7 +159,6 @@ Local<Value> V8Dispatch::OLECall(DISPID propID, int argc, Local<Value> argv[])
     Nan::ThrowError(NewOleException(hr, errInfo));
     return Nan::Undefined();
   }
-  //  Handle<Value> result = INSTANCE_CALL(vResult, "toValue", 0, NULL);
   Local<Value> vResult = V8Variant::VariantToValue(rv.v);
   OLETRACEOUT();
   return vResult;
@@ -174,8 +169,8 @@ Local<Value> V8Dispatch::OLEGet(DISPID propID, int argc, Local<Value> argv[])
   OLETRACEIN();
   OCVariant **argchain = argc ? (OCVariant**)alloca(sizeof(OCVariant*) * argc) : NULL;
   for (int i = 0; i < argc; ++i) {
-    OCVariant *o = V8Variant::CreateOCVariant(argv[i]);
-    CHECK_OCV_UNDEFINED(o);
+    OCVariant *o = V8Variant::ValueToVariant(argv[i]);
+    if (!o) return Nan::Undefined();
     argchain[i] = o;
   }
   ErrorInfo errInfo;
@@ -186,7 +181,6 @@ Local<Value> V8Dispatch::OLEGet(DISPID propID, int argc, Local<Value> argv[])
     Nan::ThrowError(NewOleException(hr, errInfo));
     return Nan::Undefined();
   }
-  //  Handle<Value> result = INSTANCE_CALL(vResult, "toValue", 0, NULL);
   Local<Value> vResult = V8Variant::VariantToValue(rv.v);
   OLETRACEOUT();
   return vResult;
@@ -197,12 +191,8 @@ bool V8Dispatch::OLESet(DISPID propID, int argc, Local<Value> argv[])
   OLETRACEIN();
   OCVariant **argchain = argc ? (OCVariant**)alloca(sizeof(OCVariant*) * argc) : NULL;
   for (int i = 0; i < argc; ++i) {
-    OCVariant *o = V8Variant::CreateOCVariant(argv[i]);
-    if (!o)
-    {
-      Nan::ThrowError(__FUNCTION__" can't access to V8Variant (null OCVariant)");
-      return false;
-    }
+    OCVariant *o = V8Variant::ValueToVariant(argv[i]);
+    if (!o) return false;
     argchain[i] = o;
   }
   ErrorInfo errInfo;
@@ -251,6 +241,17 @@ NAN_PROPERTY_GETTER(V8Dispatch::OLEGetAttr)
     }
   }
 
+  // try to retrieve it as an existing property of the js object
+  Nan::MaybeLocal<Value> mLocal = Nan::GetRealNamedProperty(thisObject, property);
+  if (!mLocal.IsEmpty())
+  {
+    Local<Value> hLocal = mLocal.ToLocalChecked();
+    if (!hLocal->IsUndefined() && !hLocal->IsNull())
+    { // this is a javascript property
+      return info.GetReturnValue().Set(hLocal);
+    }
+  }
+
   OLETRACEOUT();
 }
 
@@ -282,7 +283,22 @@ NAN_PROPERTY_SETTER(V8Dispatch::OLESetAttr)
     }
   }
 
+  // if it is an existing property of the js object, permit it to be set
+  Nan::MaybeLocal<Value> mLocal = Nan::GetRealNamedProperty(thisObject, property);
+  if (!mLocal.IsEmpty())
+  {
+    Local<Value> hLocal = mLocal.ToLocalChecked();
+    if (!hLocal->IsUndefined() && !hLocal->IsNull())
+    { // this is a javascript property
+      Nan::Maybe<bool> bResult = Nan::ForceSet(thisObject, property, value);
+      if (!bResult.IsNothing()) return info.GetReturnValue().Set(bResult.IsJust());
+      return;
+    }
+  }
+
+  // if it's not a known COM or js property, then we don't want the user creating arbitrary expandos
   OLETRACEOUT();
+  return Nan::ThrowError("Cannot assign new properties to this object");
 }
 
 NAN_INDEX_GETTER(V8Dispatch::OLEGetIdxAttr)

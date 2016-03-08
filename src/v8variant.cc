@@ -4,6 +4,7 @@
 
 #include "v8variant.h"
 #include "v8dispatch.h"
+#include "v8dispmember.h"
 #include <node.h>
 #include <nan.h>
 
@@ -97,11 +98,10 @@ void V8Variant::Init(Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE target)
   Nan::SetPrototypeMethod(t, "toDate", OLEDate);
   Nan::SetPrototypeMethod(t, "toUtf8", OLEUtf8);
   Nan::SetPrototypeMethod(t, "toValue", OLEValue);
-  Nan::SetPrototypeMethod(t, "valueOf", OLEPrimitiveValue);
-  Nan::SetPrototypeMethod(t, "toString", OLEPrimitiveValue);
-  Nan::SetPrototypeMethod(t, "toLocaleString", OLEPrimitiveValue);
-  Nan::SetPrototypeMethod(t, "toJSON", OLEPrimitiveValue);
-  //  Nan::SetPrototypeMethod(t, "New", New);
+  Nan::SetPrototypeMethod(t, "valueOf", OLEValue);
+  Nan::SetPrototypeMethod(t, "toString", OLEStringValue);
+  Nan::SetPrototypeMethod(t, "toLocaleString", OLELocaleStringValue);
+//  Nan::SetPrototypeMethod(t, "New", New);
 /*
  In ParseUnaryExpression() < v8/src/parser.cc >
  v8::Object::ToBoolean() is called directly for unary operator '!'
@@ -114,7 +114,7 @@ void V8Variant::Init(Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE target)
   clazz.Reset(t);
 }
 
-OCVariant *V8Variant::CreateOCVariant(Handle<Value> v)
+OCVariant *V8Variant::ValueToVariant(Handle<Value> v)
 {
   if (v->IsNull() || v->IsUndefined()) {
     // todo: make separate undefined type
@@ -122,6 +122,7 @@ OCVariant *V8Variant::CreateOCVariant(Handle<Value> v)
   }
   if (v.IsEmpty() || v->IsExternal() || v->IsNativeError() || v->IsFunction())
   {
+    Nan::ThrowTypeError("Cannot interpret this value as a valid OLE value (bad value class)");
     return NULL;
   }
 // VT_USERDEFINED VT_VARIANT VT_BYREF VT_ARRAY more...
@@ -129,19 +130,13 @@ OCVariant *V8Variant::CreateOCVariant(Handle<Value> v)
     return new OCVariant(Nan::To<bool>(v).FromJust());
   }else if(v->IsArray()){
 // VT_BYREF VT_ARRAY VT_SAFEARRAY
-    std::cerr << "[Array (not implemented now)]" << std::endl; return NULL;
-    std::cerr.flush();
+    Nan::ThrowTypeError("Passing Arrays to OLE not currently supported");
+    return NULL;
   }else if(v->IsInt32()){
     return new OCVariant((long)Nan::To<int32_t>(v).FromJust());
   }else if(v->IsUint32()){
     return new OCVariant((long)Nan::To<uint32_t>(v).FromJust(), VT_UI4);
-#if(0) // may not be supported node.js / v8
-  }else if(v->IsInt64()){
-    return new OCVariant(Nan::To<int64_t>(v).FromJust());
-#endif
   }else if(v->IsNumber() || v->IsNumberObject()){
-    std::cerr << "[Number (VT_R8 or VT_I8 bug?)]" << std::endl;
-    std::cerr.flush();
     return new OCVariant(Nan::To<double>(v).FromJust()); // double
   }else if(v->IsDate()){
     double d = Nan::To<double>(v).FromJust();
@@ -149,8 +144,7 @@ OCVariant *V8Variant::CreateOCVariant(Handle<Value> v)
     int msec = (int)(d - sec * 1000.0);
     struct tm *t = localtime(&sec); // *** must check locale ***
     if(!t){
-      std::cerr << "[Date may not be valid]" << std::endl;
-      std::cerr.flush();
+      Nan::ThrowTypeError("Saw a Date, but couldn't convert it to an OLE value");
       return NULL;
     }
     SYSTEMTIME syst;
@@ -170,21 +164,43 @@ OCVariant *V8Variant::CreateOCVariant(Handle<Value> v)
   }else if(v->IsString() || v->IsStringObject()){
     return new OCVariant((const wchar_t*)*String::Value(v));
   }else if(v->IsObject()){
-#if(0)
-    std::cerr << "[Object (test)]" << std::endl;
-    std::cerr.flush();
-#endif
-    V8Variant *v8v = V8Variant::Unwrap<V8Variant>(Nan::To<Object>(v).ToLocalChecked());
-    if(!v8v){
-      std::cerr << "[Object may not be valid (null V8Variant)]" << std::endl;
-      std::cerr.flush();
-      return NULL;
+    Local<Object> vObj = Local<Object>::Cast(v);
+    Local<FunctionTemplate> v8VariantClazz = Nan::New(V8Variant::clazz);
+    if (!v8VariantClazz->HasInstance(v))
+    {
+      V8Variant *v8v = V8Variant::Unwrap<V8Variant>(vObj);
+      if (!v8v) {
+        Nan::ThrowTypeError("Saw a V8Variant object, but couldn't pull private data");
+        return NULL;
+      }
+      // std::cerr << ocv->v.vt;
+      return new OCVariant(v8v->ocv);
     }
-    // std::cerr << ocv->v.vt;
-    return new OCVariant(v8v->ocv);
-  }else{
-    std::cerr << "[unknown type (not implemented now)]" << std::endl;
-    std::cerr.flush();
+    Local<FunctionTemplate> v8DispatchClazz = Nan::New(V8Dispatch::clazz);
+    if (!v8DispatchClazz->HasInstance(v))
+    {
+      V8Dispatch *v8d = V8Dispatch::Unwrap<V8Dispatch>(vObj);
+      if (!v8d) {
+        Nan::ThrowTypeError("Saw a V8Dispatch object, but couldn't pull private data");
+        return NULL;
+      }
+      // std::cerr << ocv->v.vt;
+      return new OCVariant(v8d->ocd.disp);
+    }
+    Local<FunctionTemplate> v8DispMemberClazz = Nan::New(V8DispMember::clazz);
+    if (!v8DispMemberClazz->HasInstance(v))
+    {
+      Handle<Value> innerResult = INSTANCE_CALL(vObj, "toValue", 0, NULL);
+	  return ValueToVariant(innerResult);
+	}
+  }
+  Handle<Value> hFromString = INSTANCE_CALL(Nan::To<Object>(v).ToLocalChecked(), "toString", 0, NULL);
+  if (!hFromString->IsString() && !hFromString->IsStringObject())
+  {
+    Nan::ThrowTypeError("Cannot interpret this value as a valid OLE value");
+  } else {
+    String::Utf8Value utfValue(Nan::To<String>(hFromString).ToLocalChecked());
+    Nan::ThrowTypeError(("Cannot interpret " + std::string((const char*)*utfValue) + " as a valid OLE value").c_str());
   }
   return NULL;
 }
@@ -288,28 +304,38 @@ NAN_METHOD(V8Variant::OLEValue)
   OLETRACEVT(thisObject);
   OLETRACEFLUSH();
   V8Variant *v8v = V8Variant::Unwrap<V8Variant>(info.This());
-  if (!v8v) { std::cerr << "v8v is null"; std::cerr.flush(); }
   CHECK_V8(V8Variant, v8v);
-  VARIANT& v = v8v->ocv.v;
-  switch(v.vt)
-  {
-  case VT_DISPATCH:
-    if (v.pdispVal == NULL) {
-      return info.GetReturnValue().SetNull();
-    } else {
-      return info.GetReturnValue().Set(thisObject); // through it
-    }
-  case VT_DISPATCH|VT_BYREF:
-    if (!v.ppdispVal) return info.GetReturnValue().SetUndefined(); // really shouldn't happen
-    if (*v.ppdispVal == NULL) {
-      return info.GetReturnValue().SetNull();
-    } else {
-      return info.GetReturnValue().Set(thisObject); // through it
-    }
-  default:
-    return info.GetReturnValue().Set(VariantToValue(v));
-  }
   OLETRACEOUT();
+  return info.GetReturnValue().Set(VariantToValue(v8v->ocv.v));
+}
+
+Local<Value> V8Variant::resolveValueChain(Local<Object> thisObject, const char* prop)
+{
+  OLETRACEIN();
+  V8Variant *vThis = V8Variant::Unwrap<V8Variant>(thisObject);
+  CHECK_V8_UNDEFINED(V8Variant, vThis);
+  Local<Value> vResult = VariantToValue(vThis->ocv.v);
+  if (vResult->IsUndefined()) return Nan::Undefined();
+  vResult = INSTANCE_CALL(Nan::To<Object>(vResult).ToLocalChecked(), prop, 0, NULL);
+  return vResult;
+}
+
+NAN_METHOD(V8Variant::OLEStringValue)
+{
+  OLETRACEIN();
+  Local<Value> vResult = resolveValueChain(info.This(), "toString");
+  if (vResult->IsUndefined()) return;
+  OLETRACEOUT();
+  return info.GetReturnValue().Set(vResult);
+}
+
+NAN_METHOD(V8Variant::OLELocaleStringValue)
+{
+  OLETRACEIN();
+  Local<Value> vResult = resolveValueChain(info.This(), "toLocaleString");
+  if (vResult->IsUndefined()) return;
+  OLETRACEOUT();
+  return info.GetReturnValue().Set(vResult);
 }
 
 Local<Date> V8Variant::OLEDateToObject(const DATE& dt)
@@ -648,58 +674,6 @@ static std::string GetName(ITypeInfo *typeinfo, MEMBERID id) {
     return BSTR2MBCS(name);
   }
   return "";
-}
-
-/**
- * Like OLEValue, but goes one step further and reduces IDispatch objects
- * to actual JS objects. This enables things like console.log().
- **/
-NAN_METHOD(V8Variant::OLEPrimitiveValue) {
-  Local<Object> thisObject = info.This();
-  OLETRACEVT(thisObject);
-  OLETRACEFLUSH();
-  V8Variant *v8v = V8Variant::Unwrap<V8Variant>(info.This());
-  CHECK_V8(V8Variant, v8v);
-  VARIANT& v = v8v->ocv.v;
-  IDispatch* dispatch = NULL;
-  switch (v.vt)
-  {
-  case VT_DISPATCH:
-    dispatch = v.pdispVal;
-    break;
-  case VT_DISPATCH | VT_BYREF:
-    if (!v.ppdispVal) return info.GetReturnValue().SetUndefined(); // really shouldn't happen
-    dispatch = *v.ppdispVal;
-    break;
-  default:
-    return info.GetReturnValue().Set(VariantToValue(v));
-  }
-  if (dispatch == NULL) {
-    return info.GetReturnValue().SetNull();
-  }
-  Local<Object> object = Nan::New<Object>();
-  ITypeInfo *typeinfo = NULL;
-  HRESULT hr = dispatch->GetTypeInfo(0, LOCALE_USER_DEFAULT, &typeinfo);
-  if (typeinfo) {
-    TYPEATTR* typeattr;
-    BASSERT(SUCCEEDED(typeinfo->GetTypeAttr(&typeattr)));
-    for (int i = 0; i < typeattr->cFuncs; ++i) {
-      FUNCDESC *funcdesc;
-      typeinfo->GetFuncDesc(i, &funcdesc);
-      if (funcdesc->invkind != INVOKE_FUNC) {
-        Nan::Set(object, Nan::New(GetName(typeinfo, funcdesc->memid)).ToLocalChecked(), Nan::New("Function").ToLocalChecked());
-      }
-      typeinfo->ReleaseFuncDesc(funcdesc);
-    }
-    for (int i = 0; i < typeattr->cVars; ++i) {
-      VARDESC *vardesc;
-      typeinfo->GetVarDesc(i, &vardesc);
-      Nan::Set(object, Nan::New(GetName(typeinfo, vardesc->memid)).ToLocalChecked(), Nan::New("Variable").ToLocalChecked());
-      typeinfo->ReleaseVarDesc(vardesc);
-    }
-    typeinfo->ReleaseTypeAttr(typeattr);
-  }
-  return info.GetReturnValue().Set(object);
 }
 
 Handle<Object> V8Variant::CreateUndefined(void)

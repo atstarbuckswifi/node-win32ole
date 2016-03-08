@@ -10,18 +10,6 @@ using namespace v8;
 
 namespace node_win32ole {
 
-#define CHECK_OCV(ocv) do{ \
-    if(!(ocv)) \
-      return Nan::ThrowError( __FUNCTION__" can't access to V8Variant (null OCVariant)"); \
-  }while(0)
-#define CHECK_OCV_UNDEFINED(ocv) do{ \
-    if(!(ocv)) \
-    { \
-      Nan::ThrowError( __FUNCTION__" can't access to V8Variant (null OCVariant)"); \
-      return Nan::Undefined(); \
-    } \
-  }while(0)
-
 #define CHECK_V8(cls,v8) do{ \
     if(!(v8)) \
       return Nan::ThrowError( __FUNCTION__ " can't access to " #cls); \

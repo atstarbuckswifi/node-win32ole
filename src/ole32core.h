@@ -76,6 +76,7 @@ public:
   OCVariant(BSTR bstrVal); // VT_BSTR (previous allocated)
   OCVariant(const std::string& str); // allocate and convert to VT_BSTR
   OCVariant(const wchar_t* str); // allocate and convert to VT_BSTR
+  OCVariant(IDispatch* disp); // VT_DISPATCH
   OCVariant& operator=(const OCVariant& other);
   virtual ~OCVariant();
   void Clear();

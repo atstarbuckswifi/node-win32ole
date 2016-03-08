@@ -23,7 +23,6 @@ void V8DispMember::Init(Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE target)
   Nan::SetPrototypeMethod(t, "valueOf", OLEPrimitiveValue);
   Nan::SetPrototypeMethod(t, "toString", OLEStringValue);
   Nan::SetPrototypeMethod(t, "toLocaleString", OLELocaleStringValue);
-//  Nan::SetPrototypeMethod(t, "toJSON", OLEPrimitiveValue);
 /*
  In ParseUnaryExpression() < v8/src/parser.cc >
  v8::Object::ToBoolean() is called directly for unary operator '!'
@@ -52,10 +51,7 @@ Local<Value> V8DispMember::resolveValueChain(Local<Object> thisObject, const cha
 {
   Local<Value> vResult = resolveValue(thisObject);
   if (vResult->IsUndefined()) return Nan::Undefined();
-  if (vResult->IsObject())
-  {
-	  vResult = INSTANCE_CALL(Nan::To<Object>(vResult).ToLocalChecked(), prop, 0, NULL);
-  }
+  vResult = INSTANCE_CALL(Nan::To<Object>(vResult).ToLocalChecked(), prop, 0, NULL);
   return vResult;
 }
 
@@ -131,21 +127,21 @@ NAN_METHOD(V8DispMember::New)
   CHECK_V8(V8DispMember, v);
   Local<Object> thisObject = info.This();
   v->Wrap(thisObject); // InternalField[0]
-  Nan::ForceSet(thisObject, Nan::New<String>("dispatch").ToLocalChecked(), info[0]);
+  Nan::ForceSet(thisObject, Nan::New<String>("_dispatch").ToLocalChecked(), info[0]);
   DISPFUNCOUT();
   return info.GetReturnValue().Set(thisObject);
 }
 
 V8Dispatch* V8DispMember::getDispatch(Local<Object> dispMemberObj)
 {
-  Nan::MaybeLocal<Value> mpropDisp = Nan::GetRealNamedProperty(dispMemberObj, Nan::New<String>("dispatch").ToLocalChecked());
+  Nan::MaybeLocal<Value> mpropDisp = Nan::GetRealNamedProperty(dispMemberObj, Nan::New<String>("_dispatch").ToLocalChecked());
   if (mpropDisp.IsEmpty())
     return NULL;
   Local<Value> propDisp = mpropDisp.ToLocalChecked();
   Local<FunctionTemplate> v8DispatchClazz = Nan::New(V8Dispatch::clazz);
   if (!propDisp->IsObject() || !v8DispatchClazz->HasInstance(propDisp))
     return NULL;
-  return V8Dispatch::Unwrap<V8Dispatch>(Nan::To<Object>(propDisp).ToLocalChecked());
+  return V8Dispatch::Unwrap<V8Dispatch>(Local<Object>::Cast(propDisp));
 }
 
 NAN_METHOD(V8DispMember::OLECall)
@@ -180,7 +176,10 @@ NAN_PROPERTY_GETTER(V8DispMember::OLEGetAttr)
   if (!mLocal.IsEmpty())
   {
     Local<Value> hLocal = mLocal.ToLocalChecked();
-    if (!hLocal->IsUndefined() && !hLocal->IsNull()) return; // this should be handled locally
+    if (!hLocal->IsUndefined() && !hLocal->IsNull())
+    { // this is a javascript property
+      return info.GetReturnValue().Set(hLocal);
+    }
   }
 
   String::Value vProperty(property);
@@ -220,12 +219,17 @@ NAN_PROPERTY_SETTER(V8DispMember::OLESetAttr)
   OLETRACEFLUSH();
   Local<Object> thisObject = info.This();
 
-  // first let's try to retrieve it as an existing property of the js object.  This is documented to bypass ourselves
+  // first check to see if it is an existing property of the js object.  This is documented to bypass ourselves
   Nan::MaybeLocal<Value> mLocal = Nan::GetRealNamedProperty(thisObject, property);
   if (!mLocal.IsEmpty())
   {
     Local<Value> hLocal = mLocal.ToLocalChecked();
-    if (!hLocal->IsUndefined() && !hLocal->IsNull()) return; // this should be handled locally
+    if (!hLocal->IsUndefined() && !hLocal->IsNull())
+    { // this is a javascript property
+      Nan::Maybe<bool> bResult = Nan::ForceSet(thisObject, property, value);
+      if(!bResult.IsNothing()) return info.GetReturnValue().Set(bResult.IsJust());
+      return;
+    }
   }
 
   // Resolve ourselves as a property reference

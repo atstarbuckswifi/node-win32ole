@@ -141,6 +141,17 @@ OCVariant::OCVariant(bool c_boolVal)
   DISPFUNCOUT();
 }
 
+OCVariant::OCVariant(IDispatch* disp)
+{
+  DISPFUNCIN();
+  VariantInit(&v);
+  v.vt = VT_DISPATCH;
+  v.pdispVal = disp;
+  if (disp) disp->AddRef();
+  DISPFUNCDAT("--construction-- %08p %08lx\n", &v, v.vt);
+  DISPFUNCOUT();
+}
+
 OCVariant::OCVariant(long lVal, VARTYPE type)
 {
   DISPFUNCIN();
@@ -302,7 +313,11 @@ HRESULT OCDispatch::AutoWrap(int autoType, VARIANT *pvResult, DISPID propID, OCV
   dp.rgvarg = pArgs;
   // Handle special-case for property-puts!
   DISPID dispidNamed = DISPID_PROPERTYPUT;
-  if(autoType & DISPATCH_PROPERTYPUT){
+  if((autoType & DISPATCH_PROPERTYPUT) && size){
+    if (pArgs[0].vt == VT_DISPATCH)
+    { // PUTting DISPATCH values in must be done via "PROPERTYPUTREF", replace the bit being used
+      autoType = ((autoType & ~DISPATCH_PROPERTYPUT) | DISPATCH_PROPERTYPUTREF);
+    }
     dp.cNamedArgs = 1;
     dp.rgdispidNamedArgs = &dispidNamed;
   }

@@ -23,18 +23,20 @@ public:
   static NAN_METHOD(OLEDate); // *** p.
   static NAN_METHOD(OLEUtf8); // *** p.
   static NAN_METHOD(OLEValue);
-  static NAN_METHOD(OLEPrimitiveValue);
+  static NAN_METHOD(OLEStringValue);
+  static NAN_METHOD(OLELocaleStringValue);
   static Handle<Object> CreateUndefined(void); // *** private
   static NAN_METHOD(New);
   static NAN_METHOD(Finalize);
   static Local<Value> VariantToValue(const VARIANT& ocv);
-  static ole32core::OCVariant *CreateOCVariant(Handle<Value> v); // *** private
+  static ole32core::OCVariant *ValueToVariant(Handle<Value> v); // *** private
 public:
   V8Variant() : finalized(false) {}
   ~V8Variant() { if(!finalized) Finalize(); }
   ole32core::OCVariant ocv;
 protected:
   void Finalize();
+  static Local<Value> resolveValueChain(Local<Object> thisObject, const char* prop);
   static Local<Date> OLEDateToObject(const DATE& dt);
   static Local<Value> ArrayToValue(const SAFEARRAY& a);
   static Local<Value> ArrayToValueSlow(const SAFEARRAY& a, VARTYPE vt, LONG* idices, unsigned numIdx);
