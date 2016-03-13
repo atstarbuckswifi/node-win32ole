@@ -38,10 +38,8 @@ var ole_args_test_client_metamorphoses = function(){
   console.log(cl.subname.toUtf8()); // instance method (obsoleted)
   // discussed about __noSuchProperty__
   // https://mail.mozilla.org/pipermail/es-discuss/2010-October/011930.html
-  console.log(cl.subname._); // (obsoleted)
+  console.log(cl.subname); // (obsoleted)
   console.log('test getter accessor (*** __noSuchMethod__ ***)');
-  console.log(cl.subname()); // getter may be called as method (obsoleted)
-  console.log('test getter (*** __noSuchMethod__ ***)');
   console.log(cl.GetSubName());
   console.log('quit');
   cl.Quit(); // cl.call('Quit');

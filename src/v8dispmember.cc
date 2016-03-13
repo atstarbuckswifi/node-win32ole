@@ -97,14 +97,14 @@ NAN_METHOD(V8DispMember::OLELocaleStringValue)
   return info.GetReturnValue().Set(vResult);
 }
 
-Handle<Object> V8DispMember::CreateNew(Handle<Object> dispatch, DISPID id)
+MaybeLocal<Object> V8DispMember::CreateNew(Handle<Object> dispatch, DISPID id)
 {
   DISPFUNCIN();
   Local<FunctionTemplate> localClazz = Nan::New(clazz);
-  Local<v8::Value> args[2] = { dispatch, Nan::New<Int32>(id) };
-  Local<Object> instance = Nan::NewInstance(Nan::GetFunction(localClazz).ToLocalChecked(), 2, args).ToLocalChecked();
+  Local<v8::Value> args[] = { dispatch, Nan::New<Int32>(id) };
+  int argc = sizeof(args) / sizeof(args[0]); // == 2
+  return Nan::NewInstance(Nan::GetFunction(localClazz).ToLocalChecked(), argc, args);
   DISPFUNCOUT();
-  return instance;
 }
 
 NAN_METHOD(V8DispMember::New)
@@ -149,7 +149,7 @@ NAN_METHOD(V8DispMember::OLECall)
   OLETRACEIN();
   OLETRACEARGS();
   Local<Object> thisObject = info.This();
-  V8DispMember *vThis = V8DispMember::Unwrap<V8DispMember>(info.This());
+  V8DispMember *vThis = V8DispMember::Unwrap<V8DispMember>(thisObject);
   CHECK_V8(V8DispMember, vThis);
   V8Dispatch* vDisp = vThis->getDispatch(thisObject);
   CHECK_V8(V8Dispatch, vDisp);
@@ -185,13 +185,13 @@ NAN_PROPERTY_GETTER(V8DispMember::OLEGetAttr)
   String::Value vProperty(property);
   if (wcscmp((const wchar_t*)*vProperty, L"_") == 0)
   {
-    Local<Value> vResult = resolveValue(info.This());
+    Local<Value> vResult = resolveValue(thisObject);
 	if (vResult->IsUndefined()) return; // exception?
     return info.GetReturnValue().Set(vResult);
   }
 
   // Resolve ourselves as a property reference
-  Local<Value> vResult = resolveValue(info.This());
+  Local<Value> vResult = resolveValue(thisObject);
   if (vResult->IsUndefined()) return;
 
   // try to pass the request to the resulting value
@@ -233,7 +233,7 @@ NAN_PROPERTY_SETTER(V8DispMember::OLESetAttr)
   }
 
   // Resolve ourselves as a property reference
-  V8DispMember *vThis = V8DispMember::Unwrap<V8DispMember>(info.This());
+  V8DispMember *vThis = V8DispMember::Unwrap<V8DispMember>(thisObject);
   CHECK_V8(V8DispMember, vThis);
   V8Dispatch* vDisp = vThis->getDispatch(thisObject);
   CHECK_V8(V8Dispatch, vDisp);
@@ -263,7 +263,7 @@ NAN_INDEX_GETTER(V8DispMember::OLEGetIdxAttr)
   Local<Object> thisObject = info.This();
 
   // Resolve ourselves as an indexed property reference
-  V8DispMember *vThis = V8DispMember::Unwrap<V8DispMember>(info.This());
+  V8DispMember *vThis = V8DispMember::Unwrap<V8DispMember>(thisObject);
   CHECK_V8(V8DispMember, vThis);
   V8Dispatch* vDisp = vThis->getDispatch(thisObject);
   CHECK_V8(V8Dispatch, vDisp);
@@ -290,13 +290,13 @@ NAN_INDEX_SETTER(V8DispMember::OLESetIdxAttr)
   Local<Object> thisObject = info.This();
 
   // Resolve ourselves as an indexed property reference
-  V8DispMember *vThis = V8DispMember::Unwrap<V8DispMember>(info.This());
+  V8DispMember *vThis = V8DispMember::Unwrap<V8DispMember>(thisObject);
   CHECK_V8(V8DispMember, vThis);
   V8Dispatch* vDisp = vThis->getDispatch(thisObject);
   CHECK_V8(V8Dispatch, vDisp);
 
   Handle<Value> argv[] = { Nan::New(index), value };
-  int argc = sizeof(argv) / sizeof(argv[0]); // == 1
+  int argc = sizeof(argv) / sizeof(argv[0]); // == 2
   bool bResult = vDisp->OLESet(vThis->memberId, argc, argv);
   if (bResult)
   {
@@ -304,12 +304,5 @@ NAN_INDEX_SETTER(V8DispMember::OLESetIdxAttr)
   }
   OLETRACEOUT();
 }
-
-// NAN_PROPERTY_ENUMERATOR
-// NAN_PROPERTY_DELETER
-// NAN_PROPERTY_QUERY
-// NAN_INDEX_ENUMERATOR
-// NAN_INDEX_DELETER
-// NAN_INDEX_QUERY
 
 } // namespace node_win32ole

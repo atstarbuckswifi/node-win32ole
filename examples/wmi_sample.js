@@ -83,12 +83,12 @@ var wmi_sample = function(filename){
     console.log('count = ' + count);
     for(var i = 0; i < 10; ++i){
       var svc = svcset.ItemIndex(i);
-      var q = svc.Qualifiers_._; // ***
+      var q = svc.Qualifiers_; // ***
       win32ole.printACP(
         '-> ' + get_value_from_key(q, 'provider')
         + '\n   [' + get_value_from_key(q, 'UUID')
         + ']\n');
-      var p = svc.Properties_._; // ***
+      var p = svc.Properties_; // ***
       win32ole.printACP(
         '   ' + get_value_from_key(p, 'Name')
         + '\n   [' + get_value_from_key(p, 'PathName')
@@ -97,7 +97,7 @@ var wmi_sample = function(filename){
         for(var j = 0; j < na.length; ++j){
           console.log('    method Qualifiers_: ' + na[j]);
           var me = m.Item(na[j]);
-          var mq = me.Qualifiers_._; // ***
+          var mq = me.Qualifiers_; // ***
           win32ole.printACP(
             '     [' + get_value_from_key(mq, 'Override')
             + ']\n     [' + get_value_from_key(mq, 'Static') // Boolean

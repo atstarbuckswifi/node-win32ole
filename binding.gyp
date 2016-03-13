@@ -14,6 +14,8 @@
         'src/v8variant.cc',
         'src/v8dispatch.cc',
         'src/v8dispmember.cc',
+        'src/v8dispmethod.cc',
+        'src/v8dispidxprop.cc',
         'src/ole32core.cpp'
       ],
       'dependencies': [

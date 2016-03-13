@@ -41,9 +41,10 @@ Handle<Value> NewOleException(HRESULT hr)
 {
   Handle<String> hMsg = Nan::New<String>((const uint16_t*)errorFromCodeW(hr).c_str()).ToLocalChecked();
   Local<v8::Value> args[2] = { Nan::New<Uint32>(hr), hMsg };
+  int argc = sizeof(args) / sizeof(args[0]); // == 2
   Local<Object> target = Nan::New(module_target);
   Handle<Function> function = Handle<Function>::Cast(GET_PROP(target, "OLEException").ToLocalChecked());
-  return Nan::NewInstance(function, 2, args).ToLocalChecked();
+  return Nan::NewInstance(function, argc, args).ToLocalChecked();
 }
 
 Handle<Value> NewOleException(HRESULT hr, const ErrorInfo& info)
@@ -369,7 +370,8 @@ Local<Value> V8Variant::ArrayPrimitiveToValue(void* loc, VARTYPE vt, unsigned cb
     if (reinterpret_cast<IDispatch**>(loc)[idx] == NULL) {
       return Nan::Null();
     } else {
-      return V8Dispatch::CreateNew(reinterpret_cast<IDispatch**>(loc)[idx]);
+      MaybeLocal<Object> mvReturn = V8Dispatch::CreateNew(reinterpret_cast<IDispatch**>(loc)[idx]);
+      return mvReturn.IsEmpty() ? Local<Value>(Nan::Undefined()) : mvReturn.ToLocalChecked();
     }
   case VT_ERROR:
     // ASSERT: cbElements == sizeof(SCODE)
@@ -559,14 +561,16 @@ Local<Value> V8Variant::VariantToValue(const VARIANT& v)
     if (v.pdispVal == NULL) {
       return Nan::Null();
     } else {
-      return V8Dispatch::CreateNew(v.pdispVal);
+      MaybeLocal<Object> mvReturn = V8Dispatch::CreateNew(v.pdispVal);
+      return mvReturn.IsEmpty() ? Local<Value>(Nan::Undefined()) : mvReturn.ToLocalChecked();
     }
   case VT_DISPATCH | VT_BYREF:
     if (!v.ppdispVal) return Nan::Undefined(); // really shouldn't happen
     if (*v.ppdispVal == NULL) {
       return Nan::Null();
     } else {
-      return V8Dispatch::CreateNew(*v.ppdispVal);
+      MaybeLocal<Object> mvReturn = V8Dispatch::CreateNew(*v.ppdispVal);
+      return mvReturn.IsEmpty() ? Local<Value>(Nan::Undefined()) : mvReturn.ToLocalChecked();
     }
   case VT_BOOL:
     return v.boolVal != VARIANT_FALSE ? Nan::True() : Nan::False();
@@ -656,11 +660,13 @@ Local<Value> V8Variant::VariantToValue(const VARIANT& v)
       }
     } else {
       // we don't know how to handle this type, wrap it with a V8Variant
-      Handle<Object> vResult = V8Variant::CreateUndefined();
-	  V8Variant *o = V8Variant::Unwrap<V8Variant>(vResult);
-	  CHECK_V8_UNDEFINED(V8Variant, o);
-	  VariantCopy(&o->ocv.v, &v); // copy rv value
-	  return vResult;
+      MaybeLocal<Object> mvResult = V8Variant::CreateUndefined();
+      if(mvResult.IsEmpty()) return Nan::Undefined();
+      Local<Object> vResult = mvResult.ToLocalChecked();
+      V8Variant *o = V8Variant::Unwrap<V8Variant>(vResult);
+      CHECK_V8_UNDEFINED(V8Variant, o);
+      VariantCopy(&o->ocv.v, &v); // copy rv value
+      return vResult;
     }
   }
   OLETRACEOUT();
@@ -676,13 +682,12 @@ static std::string GetName(ITypeInfo *typeinfo, MEMBERID id) {
   return "";
 }
 
-Handle<Object> V8Variant::CreateUndefined(void)
+MaybeLocal<Object> V8Variant::CreateUndefined(void)
 {
   DISPFUNCIN();
   Local<FunctionTemplate> localClazz = Nan::New(clazz);
-  Local<Object> instance = Nan::NewInstance(Nan::GetFunction(localClazz).ToLocalChecked(), 0, NULL).ToLocalChecked();
+  return Nan::NewInstance(Nan::GetFunction(localClazz).ToLocalChecked(), 0, NULL);
   DISPFUNCOUT();
-  return instance;
 }
 
 NAN_METHOD(V8Variant::New)
@@ -695,7 +700,7 @@ NAN_METHOD(V8Variant::New)
   CHECK_V8(V8Variant, v);
   v->Wrap(thisObject); // InternalField[0]
   DISPFUNCOUT();
-  return info.GetReturnValue().Set(info.This());
+  return info.GetReturnValue().Set(thisObject);
 }
 
 NAN_METHOD(V8Variant::Finalize)
@@ -708,7 +713,6 @@ NAN_METHOD(V8Variant::Finalize)
   V8Variant *v = V8Variant::Unwrap<V8Variant>(info.This());
   if(v) v->Finalize();
   DISPFUNCOUT();
-  return info.GetReturnValue().Set(info.This());
 }
 
 void V8Variant::Finalize()

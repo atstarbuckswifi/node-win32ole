@@ -7,7 +7,7 @@ var outlook_sample = function(){
   var ns = ol.GetNameSpace('MAPI');
   win32ole.print('mail:\n');
   var frcv = ns.GetDefaultFolder(6); // receive mail box tray
-  var items = frcv.Items._; // ***
+  var items = frcv.Items; // ***
   var count = items.Count;
   for(var n = 1; n <= count; ++n){
     win32ole.print(' ' + n + ' : ');
@@ -31,7 +31,7 @@ var outlook_sample = function(){
     apnt.ReminderMinutesBeforeStart = 120; // minutes
     apnt.Save();
   }
-  // var apnts = fcal.Items._; // ***
+  // var apnts = fcal.Items; // ***
   var apnts = fcal.Items.restrict('[Start] >= "26/02/2013 09:30"');
   var acnt = apnts.Count;
   for(var n = 1; n <= acnt; ++n){
@@ -43,9 +43,9 @@ var outlook_sample = function(){
     */
     var i = apnts.Item(n);
     win32ole.print('DateTime: ( from ');
-    win32ole.printACP(i.Start._);
+    win32ole.printACP(i.Start);
     win32ole.print(' to ');
-    win32ole.printACP(i.End._);
+    win32ole.printACP(i.End);
     win32ole.print(' )\n');
     win32ole.printACP('  Subject: ' + i.Subject);
     win32ole.print('\n');

@@ -92,12 +92,11 @@ public:
   OCDispatch& operator=(const OCDispatch& other);
   virtual ~OCDispatch();
   void Clear();
+  ITypeInfo* getTypeInfo();
 protected:
-  HRESULT AutoWrap(int autoType, VARIANT *pvResult, DISPID propID, OCVariant **argchain, unsigned argLen, ErrorInfo& errorInfo);
+  ITypeInfo* info;
 public:
-  HRESULT getProp(DISPID propID, OCVariant& result, ErrorInfo& errorInfo, OCVariant **argchain = NULL, unsigned argLen = 0);
-  HRESULT putProp(DISPID propID, ErrorInfo& errorInfo, OCVariant **argchain = NULL, unsigned argLen = 0);
-  HRESULT invoke(DISPID propID, OCVariant* result, ErrorInfo& errorInfo, OCVariant **argchain = NULL, unsigned argLen = 0);
+  HRESULT invoke(WORD targetType, DISPID propID, VARIANT *pvResult, ErrorInfo& errorInfo, unsigned argLen, OCVariant **argchain);
 };
 
 class OLE32core {

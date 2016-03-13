@@ -25,7 +25,7 @@ public:
   static NAN_METHOD(OLEValue);
   static NAN_METHOD(OLEStringValue);
   static NAN_METHOD(OLELocaleStringValue);
-  static Handle<Object> CreateUndefined(void); // *** private
+  static MaybeLocal<Object> CreateUndefined(void); // *** private
   static NAN_METHOD(New);
   static NAN_METHOD(Finalize);
   static Local<Value> VariantToValue(const VARIANT& ocv);

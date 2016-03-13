@@ -52,7 +52,7 @@ var wsh_sample = function(filename){
     console.log('sh.Exec(' + cmd + ')');
     var stat = sh.Exec(cmd);
 //    while(stat.Status == 0) win32ole.sleep(100, true, true);
-    var so = stat.StdOut._; // ***
+    var so = stat.StdOut; // ***
 /*
  In ParseUnaryExpression() < v8/src/parser.cc >
  v8::Object::ToBoolean() is called directly for unary operator '!'
@@ -60,9 +60,7 @@ var wsh_sample = function(filename){
  so NamedPropertyHandler will not be called
  Local<Boolean> ToBoolean(); // How to fake ? override v8::Value::ToBoolean
 */
-//  while(so.AtEndOfStream != true) // It works. (without unary operator !)
-//  while(!so.AtEndOfStream) // It does not work.
-    while(!so.AtEndOfStream._) // *** It works. oops!
+    while(!so.AtEndOfStream)
       callback(so.ReadLine());
     console.log('code = ' + stat.ExitCode);
   }

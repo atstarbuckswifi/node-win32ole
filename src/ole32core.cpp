@@ -228,14 +228,14 @@ void OCVariant::Clear()
   DISPFUNCOUT();
 }
 
-OCDispatch::OCDispatch():disp(NULL)
+OCDispatch::OCDispatch():disp(NULL), info(NULL)
 {
   DISPFUNCIN();
   DISPFUNCDAT("--construction-- %08p\n", disp, 0);
   DISPFUNCOUT();
 }
 
-OCDispatch::OCDispatch(IDispatch* d):disp(d)
+OCDispatch::OCDispatch(IDispatch* d):disp(d), info(NULL)
 {
   DISPFUNCIN();
   if (disp) disp->AddRef();
@@ -243,10 +243,11 @@ OCDispatch::OCDispatch(IDispatch* d):disp(d)
   DISPFUNCOUT();
 }
 
-OCDispatch::OCDispatch(const OCDispatch &s) :disp(s.disp)
+OCDispatch::OCDispatch(const OCDispatch &s) :disp(s.disp), info(s.info)
 {
 	DISPFUNCIN();
 	if (disp) disp->AddRef();
+	if (info) info->AddRef();
 	DISPFUNCDAT("--copy construction-- %08p\n", disp, 0);
 	DISPFUNCOUT();
 }
@@ -254,8 +255,18 @@ OCDispatch::OCDispatch(const OCDispatch &s) :disp(s.disp)
 OCDispatch& OCDispatch::operator=(const OCDispatch& other)
 {
   DISPFUNCIN();
-  disp = other.disp;
-  if (disp) disp->AddRef();
+  if (disp != other.disp)
+  {
+    if (disp) disp->Release();
+    disp = other.disp;
+    if (disp) disp->AddRef();
+  }
+  if (info != other.info)
+  {
+    if (info) info->Release();
+    info = other.info;
+    if (info) info->AddRef();
+  }
   DISPFUNCDAT("--assignment-- %08p\n", disp, 0);
   DISPFUNCOUT();
   return *this;
@@ -271,6 +282,11 @@ OCDispatch::~OCDispatch()
     disp->Release();
     disp = NULL;
   }
+  if (info)
+  {
+    info->Release();
+    info = NULL;
+  }
   DISPFUNCDAT("---(second step out)%d%d", 0, 0);
   DISPFUNCOUT();
 }
@@ -283,11 +299,31 @@ void OCDispatch::Clear()
     disp->Release();
     disp = NULL;
   }
+  if (info)
+  {
+    info->Release();
+    info = NULL;
+  }
   DISPFUNCOUT();
 }
 
+ITypeInfo* OCDispatch::getTypeInfo()
+{
+  if (!info && disp)
+  {
+    UINT typeCount;
+    HRESULT hr = disp->GetTypeInfoCount(&typeCount);
+    if (SUCCEEDED(hr) && typeCount)
+    {
+      hr = disp->GetTypeInfo(0, LOCALE_USER_DEFAULT, &info);
+      if (FAILED(hr)) info = NULL;
+    }
+  }
+  return info;
+}
+
 // AutoWrap() - Automation helper function...
-HRESULT OCDispatch::AutoWrap(int autoType, VARIANT *pvResult, DISPID propID, OCVariant **argchain, unsigned argLen, ErrorInfo& errorInfo)
+HRESULT OCDispatch::invoke(WORD targetType, DISPID propID, VARIANT *pvResult, ErrorInfo& errorInfo, unsigned argLen, OCVariant **argchain)
 {
   // bug ? comment (see old ole32core.cpp project)
   // unexpected free original BSTR
@@ -298,7 +334,7 @@ HRESULT OCDispatch::AutoWrap(int autoType, VARIANT *pvResult, DISPID propID, OCV
   // execute at the first time to safety free argchain
   // Allocate memory for arguments...
   unsigned int size = argchain ? argLen : 0;
-  VARIANT *pArgs = (VARIANT*)alloca(size * sizeof(VARIANT));
+  VARIANT *pArgs = size ? (VARIANT*)alloca(size * sizeof(VARIANT)) : NULL;
   for (unsigned int i = 0; i < size;  ++i) {
     // bug ? comment (see old ole32core.cpp project)
     // will be reallocated BSTR whein using VariantCopy() (see by debugger)
@@ -313,10 +349,10 @@ HRESULT OCDispatch::AutoWrap(int autoType, VARIANT *pvResult, DISPID propID, OCV
   dp.rgvarg = pArgs;
   // Handle special-case for property-puts!
   DISPID dispidNamed = DISPID_PROPERTYPUT;
-  if((autoType & DISPATCH_PROPERTYPUT) && size){
+  if((targetType & DISPATCH_PROPERTYPUT) && size){
     if (pArgs[0].vt == VT_DISPATCH)
     { // PUTting DISPATCH values in must be done via "PROPERTYPUTREF", replace the bit being used
-      autoType = ((autoType & ~DISPATCH_PROPERTYPUT) | DISPATCH_PROPERTYPUTREF);
+      targetType = ((targetType & ~DISPATCH_PROPERTYPUT) | DISPATCH_PROPERTYPUTREF);
     }
     dp.cNamedArgs = 1;
     dp.rgdispidNamedArgs = &dispidNamed;
@@ -324,8 +360,14 @@ HRESULT OCDispatch::AutoWrap(int autoType, VARIANT *pvResult, DISPID propID, OCV
   EXCEPINFO exceptInfo;
   memset(&exceptInfo, sizeof(exceptInfo), 0);
   // Make the call!
-  HRESULT hr = disp->Invoke(propID, IID_NULL,
-    LOCALE_USER_DEFAULT, autoType, &dp, pvResult, &exceptInfo, NULL); // or _SYSTEM_ ?
+  HRESULT hr;
+  if (!info) getTypeInfo();
+  if (info)
+  {
+    hr = DispInvoke(disp, info, propID, targetType, &dp, pvResult, &exceptInfo, NULL); // or _SYSTEM_ ?
+  } else {
+    hr = disp->Invoke(propID, IID_NULL, LOCALE_USER_DEFAULT, targetType, &dp, pvResult, &exceptInfo, NULL); // or _SYSTEM_ ?
+  }
   for (unsigned int i = 0; i < size; ++i) {
     VariantClear(&pArgs[i]);
   }
@@ -354,31 +396,6 @@ HRESULT OCDispatch::AutoWrap(int autoType, VARIANT *pvResult, DISPID propID, OCV
     if (exceptInfo.scode) hr = HRESULT_FROM_WIN32(exceptInfo.scode);
   }
   return hr;
-}
-
-HRESULT OCDispatch::getProp(DISPID propID, OCVariant& result, ErrorInfo& errorInfo, OCVariant **argchain, unsigned argLen)
-{
-  return AutoWrap(DISPATCH_PROPERTYGET, &result.v, propID, argchain, argLen, errorInfo); // distinguish METHOD
-  // may be called with DISPATCH_PROPERTYGET|DISPATCH_METHOD
-  // 'METHOD' may be called only with DISPATCH_PROPERTYGET
-  // but 'PROPERTY' must not be called only with DISPATCH_METHOD
-}
-
-HRESULT OCDispatch::putProp(DISPID propID, ErrorInfo& errorInfo, OCVariant **argchain, unsigned argLen)
-{
-  return AutoWrap(DISPATCH_PROPERTYPUT, NULL, propID, argchain, argLen, errorInfo);
-}
-
-HRESULT OCDispatch::invoke(DISPID propID, OCVariant* result, ErrorInfo& errorInfo, OCVariant **argchain, unsigned argLen)
-{
-  if(!result){
-    return AutoWrap(DISPATCH_METHOD, NULL, propID, argchain, argLen, errorInfo);
-  }else{
-    return AutoWrap(DISPATCH_METHOD | DISPATCH_PROPERTYGET, &result->v, propID, argchain, argLen, errorInfo);
-    // may be called with DISPATCH_PROPERTYGET|DISPATCH_METHOD
-    // 'METHOD' may be called only with DISPATCH_PROPERTYGET
-    // but 'PROPERTY' must not be called only with DISPATCH_METHOD
-  }
 }
 
 HRESULT OLE32core::connect(const string& locale)

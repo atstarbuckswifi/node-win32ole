@@ -23,9 +23,7 @@ var activex_filesystemobject_sample = function(){
  so NamedPropertyHandler will not be called
  Local<Boolean> ToBoolean(); // How to fake ? override v8::Value::ToBoolean
 */
-//    while(file.AtEndOfStream != true) // It works. (without unary operator !)
-//    while(!file.AtEndOfStream) // It does not work.
-      while(!file.AtEndOfStream._) // *** It works. oops!
+      while(!file.AtEndOfStream)
         callback(file.ReadLine());
     });
   };

@@ -11,6 +11,8 @@
 #include "v8variant.h"
 #include "v8dispatch.h"
 #include "v8dispmember.h"
+#include "v8dispmethod.h"
+#include "v8dispidxprop.h"
 
 using namespace v8;
 using namespace ole32core;
@@ -80,6 +82,8 @@ NAN_MODULE_INIT(init)
   V8Variant::Init(target);
   V8Dispatch::Init(target);
   V8DispMember::Init(target);
+  V8DispMethod::Init(target);
+  V8DispIdxProperty::Init(target);
   Client::Init(target);
   Nan::ForceSet(target, Nan::New("VERSION").ToLocalChecked(),
     Nan::New("0.0.0 (will be set later)").ToLocalChecked(),

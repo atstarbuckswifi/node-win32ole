@@ -21,9 +21,7 @@ var display_or_edit_all = function(rs, ed){
  so NamedPropertyHandler will not be called
  Local<Boolean> ToBoolean(); // How to fake ? override v8::Value::ToBoolean
 */
-//while(rs.Eof != true){ // It works. (without unary operator !)
-//while(!rs.Eof){ // It does not work.
-  while(!rs.Eof._){ // *** It works. oops!
+  while(!rs.Eof){
     win32ole.print('id: ');
     win32ole.print(getRSvalue(rs, 'id'));
     win32ole.print(', c1: ');
@@ -52,7 +50,7 @@ var adox_sample = function(filename){
   db.Create(dsn);
   var sql_create_table = 'create table testtbl (id autoincrement primary key,';
   sql_create_table += ' c1 varchar(255), c2 integer, c3 varchar(255));';
-  var cn = db.ActiveConnection._; // ***
+  var cn = db.ActiveConnection; // ***
   cn.Execute(sql_create_table);
   for(var i = 11; i < 13; ++i){
     var sql_insert = "insert into testtbl (c1, c2, c3) values";

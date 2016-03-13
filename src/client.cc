@@ -85,11 +85,9 @@ NAN_METHOD(Client::Dispatch)
     fprintf(stderr, " %02x", ((unsigned char *)&clsid)[i]);
   fprintf(stderr, "\n");
 #endif
-  Handle<Object> vApp = V8Dispatch::CreateNew(NULL);
-  if (vApp.IsEmpty() || vApp->IsUndefined() || !vApp->IsObject())
-  {
-    return Nan::ThrowError("Unable to create return value placeholder");
-  }
+  MaybeLocal<Object> mvApp = V8Dispatch::CreateNew(NULL);
+  if (mvApp.IsEmpty()) return; // likely an error has already been thrown
+  Local<Object> vApp = mvApp.ToLocalChecked();
   V8Dispatch *v8d = V8Dispatch::Unwrap<V8Dispatch>(vApp);
   CHECK_V8(V8Dispatch, v8d);
   OCDispatch *app = &v8d->ocd;
@@ -129,7 +127,6 @@ NAN_METHOD(Client::Finalize)
   Client *cl = Client::Unwrap<Client>(info.This());
   if (cl) cl->Finalize();
   DISPFUNCOUT();
-  return info.GetReturnValue().Set(info.This());
 }
 
 void Client::Finalize()
