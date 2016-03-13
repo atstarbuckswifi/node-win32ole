@@ -4,11 +4,11 @@
     <meta charset='utf-8'>
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
 
-    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
-    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
-    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-dark.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print">
 
-    <title>node-win32ole by idobatter</title>
+    <title>node-win32ole by odysseus654</title>
   </head>
 
   <body>
@@ -16,56 +16,57 @@
     <header>
       <div class="container">
         <h1>node-win32ole</h1>
-        <h2>Asynchronous, non-blocking win32ole bindings for node.js .</h2>
+        <h2>Win32ole bindings for node.js .</h2>
 
         <section id="downloads">
-          <a href="https://github.com/idobatter/node-win32ole/zipball/master" class="btn">Download as .zip</a>
-          <a href="https://github.com/idobatter/node-win32ole/tarball/master" class="btn">Download as .tar.gz</a>
-          <a href="https://github.com/idobatter/node-win32ole" class="btn btn-github"><span class="icon"></span>View on GitHub</a>
+          <a href="https://github.com/odysseus654/node-win32ole/zipball/master" class="btn">Download as .zip</a>
+          <a href="https://github.com/odysseus654/node-win32ole/tarball/master" class="btn">Download as .tar.gz</a>
+          <a href="https://github.com/odysseus654/node-win32ole" class="btn btn-github"><span class="icon"></span>View on GitHub</a>
         </section>
       </div>
     </header>
 
     <div class="container">
       <section id="main_content">
-        <h1>NAME</h1>
+        <h1>
+<a id="name" class="anchor" href="#name" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>NAME</h1>
 
-<p>node-win32ole - Asynchronous, non-blocking win32ole bindings for <a href="https://github.com/joyent/node">node.js</a> powered by v8 engine .</p>
+<p>node-win32ole - win32ole bindings for <a href="https://github.com/joyent/node">node.js</a> powered by v8 engine .</p>
 
-<p>win32ole makes accessibility from node.js to Excel, Word, Access, Outlook, InternetExplorer, WSH ( ActiveXObject / COM ) and so on. It does not need TypeLibrary.</p>
+<p>win32ole makes accessibility from node.js to Excel, Word, Access, Outlook, InternetExplorer, WSH ( ActiveXObject / COM ) and so on. It does not need a type library, although it will function better if OLE objects provide type information.</p>
 
-<h1>USAGE</h1>
+<h1>
+<a id="usage" class="anchor" href="#usage" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>USAGE</h1>
 
 <p>Install with <code>npm install win32ole</code>.</p>
 
 <p>It works as... (version 0.1.x)</p>
 
-<div class="highlight"><pre><span class="k">try</span><span class="p">{</span>
-  <span class="kd">var</span> <span class="nx">win32ole</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'win32ole'</span><span class="p">);</span>
-  <span class="c1">// var xl = new ActiveXObject('Excel.Application'); // You may write it as:</span>
-  <span class="kd">var</span> <span class="nx">xl</span> <span class="o">=</span> <span class="nx">win32ole</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">Dispatch</span><span class="p">(</span><span class="s1">'Excel.Application'</span><span class="p">);</span>
-  <span class="nx">xl</span><span class="p">.</span><span class="nx">Visible</span> <span class="o">=</span> <span class="kc">true</span><span class="p">;</span>
-  <span class="kd">var</span> <span class="nx">book</span> <span class="o">=</span> <span class="nx">xl</span><span class="p">.</span><span class="nx">Workbooks</span><span class="p">.</span><span class="nx">Add</span><span class="p">();</span>
-  <span class="kd">var</span> <span class="nx">sheet</span> <span class="o">=</span> <span class="nx">book</span><span class="p">.</span><span class="nx">Worksheets</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
-  <span class="k">try</span><span class="p">{</span>
-    <span class="nx">sheet</span><span class="p">.</span><span class="nx">Name</span> <span class="o">=</span> <span class="s1">'sheetnameA utf8'</span><span class="p">;</span>
-    <span class="nx">sheet</span><span class="p">.</span><span class="nx">Cells</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">).</span><span class="nx">Value</span> <span class="o">=</span> <span class="s1">'test utf8'</span><span class="p">;</span>
-    <span class="kd">var</span> <span class="nx">rg</span> <span class="o">=</span> <span class="nx">sheet</span><span class="p">.</span><span class="nx">Range</span><span class="p">(</span><span class="nx">sheet</span><span class="p">.</span><span class="nx">Cells</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="nx">sheet</span><span class="p">.</span><span class="nx">Cells</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">));</span>
-    <span class="nx">rg</span><span class="p">.</span><span class="nx">RowHeight</span> <span class="o">=</span> <span class="mf">5.18</span><span class="p">;</span>
-    <span class="nx">rg</span><span class="p">.</span><span class="nx">ColumnWidth</span> <span class="o">=</span> <span class="mf">0.58</span><span class="p">;</span>
-    <span class="nx">rg</span><span class="p">.</span><span class="nx">Interior</span><span class="p">.</span><span class="nx">ColorIndex</span> <span class="o">=</span> <span class="mi">6</span><span class="p">;</span> <span class="c1">// Yellow</span>
-    <span class="kd">var</span> <span class="nx">result</span> <span class="o">=</span> <span class="nx">book</span><span class="p">.</span><span class="nx">SaveAs</span><span class="p">(</span><span class="s1">'testfileutf8.xls'</span><span class="p">);</span>
-    <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">result</span><span class="p">);</span>
-  <span class="p">}</span><span class="k">catch</span><span class="p">(</span><span class="nx">e</span><span class="p">){</span>
-    <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">'(exception cached)\n'</span> <span class="o">+</span> <span class="nx">e</span><span class="p">);</span>
-  <span class="p">}</span>
-  <span class="nx">xl</span><span class="p">.</span><span class="nx">ScreenUpdating</span> <span class="o">=</span> <span class="kc">true</span><span class="p">;</span>
-  <span class="nx">xl</span><span class="p">.</span><span class="nx">Workbooks</span><span class="p">.</span><span class="nx">Close</span><span class="p">();</span>
-  <span class="nx">xl</span><span class="p">.</span><span class="nx">Quit</span><span class="p">();</span>
-<span class="p">}</span><span class="k">catch</span><span class="p">(</span><span class="nx">e</span><span class="p">){</span>
-  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">'*** exception cached ***\n'</span> <span class="o">+</span> <span class="nx">e</span><span class="p">);</span>
-<span class="p">}</span>
-</pre></div>
+<div class="highlight highlight-source-js"><pre><span class="pl-k">try</span>{
+  <span class="pl-k">var</span> win32ole <span class="pl-k">=</span> <span class="pl-c1">require</span>(<span class="pl-s"><span class="pl-pds">'</span>win32ole<span class="pl-pds">'</span></span>);
+  <span class="pl-c">// var xl = new ActiveXObject('Excel.Application'); // You may write it as:</span>
+  <span class="pl-k">var</span> xl <span class="pl-k">=</span> <span class="pl-smi">win32ole</span>.<span class="pl-smi">client</span>.<span class="pl-en">Dispatch</span>(<span class="pl-s"><span class="pl-pds">'</span>Excel.Application<span class="pl-pds">'</span></span>);
+  <span class="pl-smi">xl</span>.<span class="pl-smi">Visible</span> <span class="pl-k">=</span> <span class="pl-c1">true</span>;
+  <span class="pl-k">var</span> book <span class="pl-k">=</span> <span class="pl-smi">xl</span>.<span class="pl-smi">Workbooks</span>.<span class="pl-en">Add</span>();
+  <span class="pl-k">var</span> sheet <span class="pl-k">=</span> <span class="pl-smi">book</span>.<span class="pl-en">Worksheets</span>(<span class="pl-c1">1</span>);
+  <span class="pl-k">try</span>{
+    <span class="pl-smi">sheet</span>.<span class="pl-smi">Name</span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>sheetnameA utf8<span class="pl-pds">'</span></span>;
+    <span class="pl-smi">sheet</span>.<span class="pl-en">Cells</span>(<span class="pl-c1">1</span>, <span class="pl-c1">2</span>).<span class="pl-smi">Value</span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>test utf8<span class="pl-pds">'</span></span>;
+    <span class="pl-k">var</span> rg <span class="pl-k">=</span> <span class="pl-smi">sheet</span>.<span class="pl-en">Range</span>(<span class="pl-smi">sheet</span>.<span class="pl-en">Cells</span>(<span class="pl-c1">2</span>, <span class="pl-c1">2</span>), <span class="pl-smi">sheet</span>.<span class="pl-en">Cells</span>(<span class="pl-c1">4</span>, <span class="pl-c1">4</span>));
+    <span class="pl-smi">rg</span>.<span class="pl-smi">RowHeight</span> <span class="pl-k">=</span> <span class="pl-c1">5.18</span>;
+    <span class="pl-smi">rg</span>.<span class="pl-smi">ColumnWidth</span> <span class="pl-k">=</span> <span class="pl-c1">0.58</span>;
+    <span class="pl-smi">rg</span>.<span class="pl-smi">Interior</span>.<span class="pl-smi">ColorIndex</span> <span class="pl-k">=</span> <span class="pl-c1">6</span>; <span class="pl-c">// Yellow</span>
+    <span class="pl-k">var</span> result <span class="pl-k">=</span> <span class="pl-smi">book</span>.<span class="pl-en">SaveAs</span>(<span class="pl-s"><span class="pl-pds">'</span>testfileutf8.xls<span class="pl-pds">'</span></span>);
+    <span class="pl-en">console</span>.<span class="pl-c1">log</span>(result);
+  }<span class="pl-k">catch</span>(e){
+    <span class="pl-en">console</span>.<span class="pl-c1">log</span>(<span class="pl-s"><span class="pl-pds">'</span>(exception cached)<span class="pl-cce">\n</span><span class="pl-pds">'</span></span> <span class="pl-k">+</span> e);
+  }
+  <span class="pl-smi">xl</span>.<span class="pl-smi">ScreenUpdating</span> <span class="pl-k">=</span> <span class="pl-c1">true</span>;
+  <span class="pl-smi">xl</span>.<span class="pl-smi">Workbooks</span>.<span class="pl-en">Close</span>();
+  <span class="pl-smi">xl</span>.<span class="pl-en">Quit</span>();
+}<span class="pl-k">catch</span>(e){
+  <span class="pl-en">console</span>.<span class="pl-c1">log</span>(<span class="pl-s"><span class="pl-pds">'</span>*** exception cached ***<span class="pl-cce">\n</span><span class="pl-pds">'</span></span> <span class="pl-k">+</span> e);
+}</pre></div>
 
 <p>There are 3 ways to make force Garbage Collection for node.js / v8 .</p>
 
@@ -73,9 +74,12 @@
 <li>1. use huge memory to run GC automatically ( causes abnormal termination )</li>
 <li>2. win32ole.force_gc_extension(1);</li>
 <li>3. win32ole.force_gc_internal(1);</li>
-</ul><p>see also <a href="https://github.com/idobatter/node-win32ole/blob/master/examples/ole_args_test_client.js">examples/ole_args_test_client.js</a></p>
+</ul>
 
-<h1>Tutorial and Examples</h1>
+<p>see also <a href="https://github.com/idobatter/node-win32ole/blob/master/examples/ole_args_test_client.js">examples/ole_args_test_client.js</a></p>
+
+<h1>
+<a id="tutorial-and-examples" class="anchor" href="#tutorial-and-examples" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Tutorial and Examples</h1>
 
 <ul>
 <li><a href="https://github.com/idobatter/node-win32ole/blob/master/test/init_win32ole.test.js">test/init_win32ole.test.js</a></li>
@@ -93,7 +97,10 @@
 <li><a href="https://github.com/idobatter/node-win32ole/blob/master/examples/wsh_sample.js">examples/wsh_sample.js</a></li>
 <li><a href="https://github.com/idobatter/node-win32ole/blob/master/examples/ole_args_test_client.js">examples/ole_args_test_client.js</a></li>
 <li><a href="https://github.com/idobatter/node-win32ole/blob/master/examples/ole_args_test_client_metamorphoses.js">examples/ole_args_test_client_metamorphoses.js</a></li>
-</ul><h1>Other built in functions</h1>
+</ul>
+
+<h1>
+<a id="other-built-in-functions" class="anchor" href="#other-built-in-functions" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Other built in functions</h1>
 
 <ul>
 <li>win32ole.version(void) // returns version string</li>
@@ -103,7 +110,10 @@
 <li>win32ole.sleep(long milliseconds, bool withmessage=false, bool with\n=false)</li>
 <li>win32ole.force_gc_extension(long flag) // now flag is dummy</li>
 <li>win32ole.force_gc_internal(long flag, string) // now flag is dummy</li>
-</ul><h1>FEATURES</h1>
+</ul>
+
+<h1>
+<a id="features" class="anchor" href="#features" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>FEATURES</h1>
 
 <ul>
 <li>fix BUG: date</li>
@@ -113,15 +123,19 @@
 <li>Now '._' ideom is obsoleted.</li>
 <li>Remove 'node-proxy' from dependencies list.</li>
 <li>Change default branch to dev0.1.0 .</li>
-<li>BUG: Some samples in between win32ole@0.0.25 and win32ole@0.0.28 ( examples/maze_creator.js examples/maze_solver.js ) uses huge memory and many disposers will run by v8 GC when maze size is 20*30. I think that each encapsulated V8Variant (by node-proxy) may be big object. So I will try to use v8 accessor handlers ( SetCallAsFunctionHandler / SetNamedPropertyHandler / SetIndexedPropertyHandler ) instead of ( '__noSuchMethod__' / '__noSuchGetter__' / '__noSuchSetter__' ) by node-proxy.</li>
+<li>BUG: Some samples in between win32ole@0.0.25 and win32ole@0.0.28 ( examples/maze_creator.js examples/maze_solver.js ) uses huge memory and many disposers will run by v8 GC when maze size is 20*30. I think that each encapsulated V8Variant (by node-proxy) may be big object. So I will try to use v8 accessor handlers ( SetCallAsFunctionHandler / SetNamedPropertyHandler / SetIndexedPropertyHandler ) instead of ( '<strong>noSuchMethod</strong>' / '<strong>noSuchGetter</strong>' / '<strong>noSuchSetter</strong>' ) by node-proxy.</li>
 <li>So much implements. (can not handle some COM VARIANT types, array etc.)</li>
 <li>Bug fix. (throws exception when failed to Invoke(), and many test message.)</li>
 <li>Implement accessors getter, setter and caller. (version 0.1.x) (Some V8Variants were advanced to 0.1.x .)</li>
-</ul><h1>API</h1>
+</ul>
+
+<h1>
+<a id="api" class="anchor" href="#api" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>API</h1>
 
 <p>See the <a href="https://github.com/idobatter/node-win32ole/wiki">API documentation</a> in the wiki.</p>
 
-<h1>BUILDING</h1>
+<h1>
+<a id="building" class="anchor" href="#building" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>BUILDING</h1>
 
 <p>This project uses VC++ 2008 Express (or later) and Python 2.6 (or later) .
 (When using Python 2.5, it needs <a href="http://pypi.python.org/pypi/multiprocessing/">multiprocessing 2.5 back port</a> .) It needs neither ATL nor MFC.</p>
@@ -144,7 +158,8 @@ node-gyp build
 <pre><code>npm install win32ole
 </code></pre>
 
-<h1>TESTS</h1>
+<h1>
+<a id="tests" class="anchor" href="#tests" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>TESTS</h1>
 
 <p><a href="https://github.com/visionmedia/mocha">mocha</a> is required to run unit tests.</p>
 
@@ -152,15 +167,20 @@ node-gyp build
 nmake /a test
 </code></pre>
 
-<h1>CONTRIBUTORS</h1>
+<h1>
+<a id="contributors" class="anchor" href="#contributors" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>CONTRIBUTORS</h1>
 
 <ul>
 <li><a href="https://github.com/idobatter">idobatter</a></li>
-</ul><h1>ACKNOWLEDGEMENTS</h1>
+</ul>
+
+<h1>
+<a id="acknowledgements" class="anchor" href="#acknowledgements" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>ACKNOWLEDGEMENTS</h1>
 
 <p>Inspired <a href="http://www.ruby-doc.org/stdlib/libdoc/win32ole/rdoc/">Win32OLE</a></p>
 
-<h1>LICENSE</h1>
+<h1>
+<a id="license" class="anchor" href="#license" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>LICENSE</h1>
 
 <p><code>node-win32ole</code> is <a href="https://github.com/idobatter/node-win32ole/raw/master/LICENSE">BSD licensed</a>.</p>
       </section>
