@@ -85,21 +85,66 @@
 
 <p>Most values that are returned from a COM object will be translated to an equivalent (or approximate) Javascript value.  An exception to this is a COM value representing an object that does not implement IDispatch.  This will be returned in a wrapper object, but with minimal value other than potentially passing it in as a method parameter or assigning it to a property.</p>
 
-<p>Passing Javascript values into COM requires translating the values.  The datatypes are translated as follows:
-Javascript Type | COM Datatype
---------------- | ------------
-null | VT_EMPTY (empty)
-undefined (TODO) | DISP_E_PARAMNOTFOUND (optional parameter not specified) (TODO)
-boolean | VT_BOOL (Boolean)
-int | VT_I4 (Long)
-uint | VT_UI4 (unsigned Long)
-Number | VT_R8 (double)
-Date | VT_DATE (date, note that all OLE dates are local time zone)
-string | VT_BSTR (string)
-V8Variant (wrapper holding unknown datatypes) | VT_VARIANT
-V8Dispatch (wrapper holding objects) | VT_DISPATCH
-V8Dispatch.method (function reference) | (call the method and try again with the result)
-All others | throw TypeError</p>
+<p>Passing Javascript values into COM requires translating the values.  The datatypes are translated as follows:</p>
+
+<table>
+<thead>
+<tr>
+<th>Javascript Type</th>
+<th>COM Datatype</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>null</td>
+<td>VT_EMPTY (empty)</td>
+</tr>
+<tr>
+<td>undefined (TODO)</td>
+<td>DISP_E_PARAMNOTFOUND (optional parameter not specified) (TODO)</td>
+</tr>
+<tr>
+<td>boolean</td>
+<td>VT_BOOL (Boolean)</td>
+</tr>
+<tr>
+<td>int</td>
+<td>VT_I4 (Long)</td>
+</tr>
+<tr>
+<td>uint</td>
+<td>VT_UI4 (unsigned Long)</td>
+</tr>
+<tr>
+<td>Number</td>
+<td>VT_R8 (double)</td>
+</tr>
+<tr>
+<td>Date</td>
+<td>VT_DATE (date, note that all OLE dates are local time zone)</td>
+</tr>
+<tr>
+<td>string</td>
+<td>VT_BSTR (string)</td>
+</tr>
+<tr>
+<td>V8Variant (wrapper holding unknown datatypes)</td>
+<td>VT_VARIANT</td>
+</tr>
+<tr>
+<td>V8Dispatch (wrapper holding objects)</td>
+<td>VT_DISPATCH</td>
+</tr>
+<tr>
+<td>V8Dispatch.method (function reference)</td>
+<td>(call the method and try again with the result)</td>
+</tr>
+<tr>
+<td>All others</td>
+<td>throw TypeError</td>
+</tr>
+</tbody>
+</table>
 
 <h1>
 <a id="garbage-collection" class="anchor" href="#garbage-collection" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Garbage Collection</h1>
