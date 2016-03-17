@@ -44,8 +44,9 @@
 
 <div class="highlight highlight-source-js"><pre><span class="pl-k">try</span>{
   <span class="pl-k">var</span> win32ole <span class="pl-k">=</span> <span class="pl-c1">require</span>(<span class="pl-s"><span class="pl-pds">'</span>win32ole<span class="pl-pds">'</span></span>);
+  <span class="pl-c">// documented at https://msdn.microsoft.com/en-us/library/microsoft.office.interop.excel._application_members.aspx</span>
   <span class="pl-c">// var xl = new ActiveXObject('Excel.Application'); // You may write it as:</span>
-  <span class="pl-k">var</span> xl <span class="pl-k">=</span> <span class="pl-smi">win32ole</span>.<span class="pl-smi">client</span>.<span class="pl-en">Dispatch</span>([<span class="pl-s"><span class="pl-pds">'</span>Excel.Application<span class="pl-pds">'</span></span>](https<span class="pl-k">:</span><span class="pl-c">//msdn.microsoft.com/en-us/library/microsoft.office.interop.excel._application_members.aspx));</span>
+  <span class="pl-k">var</span> xl <span class="pl-k">=</span> <span class="pl-smi">win32ole</span>.<span class="pl-smi">client</span>.<span class="pl-en">Dispatch</span>(<span class="pl-s"><span class="pl-pds">'</span>Excel.Application<span class="pl-pds">'</span></span>);
   <span class="pl-smi">xl</span>.<span class="pl-smi">Visible</span> <span class="pl-k">=</span> <span class="pl-c1">true</span>;
   <span class="pl-k">var</span> book <span class="pl-k">=</span> <span class="pl-smi">xl</span>.<span class="pl-smi">Workbooks</span>.<span class="pl-en">Add</span>();
   <span class="pl-k">var</span> sheet <span class="pl-k">=</span> <span class="pl-smi">book</span>.<span class="pl-smi">Worksheets</span>[<span class="pl-c1">1</span>];
@@ -68,6 +69,18 @@
   <span class="pl-en">console</span>.<span class="pl-c1">log</span>(<span class="pl-s"><span class="pl-pds">'</span>*** exception cached ***<span class="pl-cce">\n</span><span class="pl-pds">'</span></span> <span class="pl-k">+</span> e);
 }</pre></div>
 
+<h1>
+<a id="intro" class="anchor" href="#intro" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Intro</h1>
+
+<p>Microsoft introduced <a href="https://en.wikipedia.org/wiki/Component_Object_Model">COM</a> in 1993 and pushed it as the primary means of having applications communicate with each other.  More recently Microsoft has been transitioning to use of .NET components which cannot be seen or used by COM applications, but they do still provide COM interfaces for most of their products (and make it easy for developers to make C# COM-visible).</p>
+
+<p>This library permits call to COM objects that support the <a href="https://en.wikipedia.org/wiki/IDispatch">IDispatch</a> interface.  This interface describes the object and gives us the means to call it from a scripting language.  IDispatch is tightly built around the Visual Basic and the VBScript languages and share many of the assumptions that those languages make, which can be very different from Javascript.</p>
+
+<p>The IDispatch interface permits for objects that refuse to describe themselves.  In this case this library will still permit the objects to be used, but will fall back to less intelligent behavior.</p>
+
+<h1>
+<a id="garbage-collections" class="anchor" href="#garbage-collections" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Garbage Collections</h1>
+
 <p>There are 3 ways to make force Garbage Collection for node.js / v8 .</p>
 
 <ul>
@@ -77,13 +90,6 @@
 </ul>
 
 <p>see also <a href="https://github.com/idobatter/node-win32ole/blob/master/examples/ole_args_test_client.js">examples/ole_args_test_client.js</a></p>
-
-<h1>
-<a id="intro" class="anchor" href="#intro" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Intro</h1>
-
-<p>Microsoft introduced <a href="https://en.wikipedia.org/wiki/Component_Object_Model">COM</a> in 1993 and pushed it as the primary means of having applications communicate with each other.  More recently Microsoft has been transitioning to use of .NET components which cannot be seen or used by COM applications, but they do still provide COM interfaces for most of their products (and make it easy for developers to make C# COM-visible).</p>
-
-<p>This library supports COM objects that implement the <a href="https://en.wikipedia.org/wiki/IDispatch">IDispatch</a> interface.  </p>
 
 <h1>
 <a id="tutorial-and-examples" class="anchor" href="#tutorial-and-examples" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Tutorial and Examples</h1>
