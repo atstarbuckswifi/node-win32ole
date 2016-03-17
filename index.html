@@ -45,14 +45,14 @@
 <div class="highlight highlight-source-js"><pre><span class="pl-k">try</span>{
   <span class="pl-k">var</span> win32ole <span class="pl-k">=</span> <span class="pl-c1">require</span>(<span class="pl-s"><span class="pl-pds">'</span>win32ole<span class="pl-pds">'</span></span>);
   <span class="pl-c">// var xl = new ActiveXObject('Excel.Application'); // You may write it as:</span>
-  <span class="pl-k">var</span> xl <span class="pl-k">=</span> <span class="pl-smi">win32ole</span>.<span class="pl-smi">client</span>.<span class="pl-en">Dispatch</span>(<span class="pl-s"><span class="pl-pds">'</span>Excel.Application<span class="pl-pds">'</span></span>);
+  <span class="pl-k">var</span> xl <span class="pl-k">=</span> <span class="pl-smi">win32ole</span>.<span class="pl-smi">client</span>.<span class="pl-en">Dispatch</span>([<span class="pl-s"><span class="pl-pds">'</span>Excel.Application<span class="pl-pds">'</span></span>](https<span class="pl-k">:</span><span class="pl-c">//msdn.microsoft.com/en-us/library/microsoft.office.interop.excel._application_members.aspx));</span>
   <span class="pl-smi">xl</span>.<span class="pl-smi">Visible</span> <span class="pl-k">=</span> <span class="pl-c1">true</span>;
   <span class="pl-k">var</span> book <span class="pl-k">=</span> <span class="pl-smi">xl</span>.<span class="pl-smi">Workbooks</span>.<span class="pl-en">Add</span>();
-  <span class="pl-k">var</span> sheet <span class="pl-k">=</span> <span class="pl-smi">book</span>.<span class="pl-en">Worksheets</span>(<span class="pl-c1">1</span>);
+  <span class="pl-k">var</span> sheet <span class="pl-k">=</span> <span class="pl-smi">book</span>.<span class="pl-smi">Worksheets</span>[<span class="pl-c1">1</span>];
   <span class="pl-k">try</span>{
     <span class="pl-smi">sheet</span>.<span class="pl-smi">Name</span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>sheetnameA utf8<span class="pl-pds">'</span></span>;
-    <span class="pl-smi">sheet</span>.<span class="pl-en">Cells</span>(<span class="pl-c1">1</span>, <span class="pl-c1">2</span>).<span class="pl-smi">Value</span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>test utf8<span class="pl-pds">'</span></span>;
-    <span class="pl-k">var</span> rg <span class="pl-k">=</span> <span class="pl-smi">sheet</span>.<span class="pl-en">Range</span>(<span class="pl-smi">sheet</span>.<span class="pl-en">Cells</span>(<span class="pl-c1">2</span>, <span class="pl-c1">2</span>), <span class="pl-smi">sheet</span>.<span class="pl-en">Cells</span>(<span class="pl-c1">4</span>, <span class="pl-c1">4</span>));
+    <span class="pl-smi">sheet</span>.<span class="pl-en">get_Cells</span>(<span class="pl-c1">1</span>, <span class="pl-c1">2</span>).<span class="pl-smi">Value</span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>test utf8<span class="pl-pds">'</span></span>;
+    <span class="pl-k">var</span> rg <span class="pl-k">=</span> <span class="pl-smi">sheet</span>.<span class="pl-en">get_Range</span>(<span class="pl-smi">sheet</span>.<span class="pl-en">get_Cells</span>(<span class="pl-c1">2</span>, <span class="pl-c1">2</span>), <span class="pl-smi">sheet</span>.<span class="pl-en">get_Cells</span>(<span class="pl-c1">4</span>, <span class="pl-c1">4</span>));
     <span class="pl-smi">rg</span>.<span class="pl-smi">RowHeight</span> <span class="pl-k">=</span> <span class="pl-c1">5.18</span>;
     <span class="pl-smi">rg</span>.<span class="pl-smi">ColumnWidth</span> <span class="pl-k">=</span> <span class="pl-c1">0.58</span>;
     <span class="pl-smi">rg</span>.<span class="pl-smi">Interior</span>.<span class="pl-smi">ColorIndex</span> <span class="pl-k">=</span> <span class="pl-c1">6</span>; <span class="pl-c">// Yellow</span>
@@ -77,6 +77,13 @@
 </ul>
 
 <p>see also <a href="https://github.com/idobatter/node-win32ole/blob/master/examples/ole_args_test_client.js">examples/ole_args_test_client.js</a></p>
+
+<h1>
+<a id="intro" class="anchor" href="#intro" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Intro</h1>
+
+<p>Microsoft introduced <a href="https://en.wikipedia.org/wiki/Component_Object_Model">COM</a> in 1993 and pushed it as the primary means of having applications communicate with each other.  More recently Microsoft has been transitioning to use of .NET components which cannot be seen or used by COM applications, but they do still provide COM interfaces for most of their products (and make it easy for developers to make C# COM-visible).</p>
+
+<p>This library supports COM objects that implement the <a href="https://en.wikipedia.org/wiki/IDispatch">IDispatch</a> interface.  </p>
 
 <h1>
 <a id="tutorial-and-examples" class="anchor" href="#tutorial-and-examples" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Tutorial and Examples</h1>
