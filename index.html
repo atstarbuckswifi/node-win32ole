@@ -83,7 +83,7 @@
 
 <p>Objects can contain methods and properties.  Methods are similar to function calls and do something, while properties are similar to variables and can be read (and sometimes assigned).  Both methods and properties can take parameters (although for properties they are called "indexes".</p>
 
-<p>Most values that are returned from a COM object will be translated to an equivalent (or approximate) Javascript value.  An exception to this is a COM value representing an object that does not implement IDispatch.  This will be returned in a wrapper object, but with minimal value other than potentially passing it in as a method parameter or assigning it to a property.</p>
+<p>Most values that are returned from a COM object will be translated to an equivalent (or approximate) Javascript value.  Most COM datatypes are supported, if we cannot translate it we will place it within a <code>V8Variant</code> wrapper object so it can be passed as-is back to COM as a parameter in a method call or a property value in an assignment, for instance.</p>
 
 <p>Passing Javascript values into COM requires translating the values.  The datatypes are translated as follows:</p>
 
@@ -100,8 +100,10 @@
 <td>VT_EMPTY (empty)</td>
 </tr>
 <tr>
-<td>undefined (TODO)</td>
-<td>DISP_E_PARAMNOTFOUND (optional parameter not specified) (TODO)</td>
+<td>undefined <em>(TODO)</em>
+</td>
+<td>DISP_E_PARAMNOTFOUND (optional parameter not specified) <em>(TODO)</em>
+</td>
 </tr>
 <tr>
 <td>boolean</td>
@@ -129,19 +131,19 @@
 </tr>
 <tr>
 <td>V8Variant (wrapper holding unknown datatypes)</td>
-<td>VT_VARIANT</td>
+<td><em>(contents of the V8Variant)</em></td>
 </tr>
 <tr>
 <td>V8Dispatch (wrapper holding objects)</td>
-<td>VT_DISPATCH</td>
+<td>VT_DISPATCH (Object supporting IDispatch)</td>
 </tr>
 <tr>
 <td>V8Dispatch.method (function reference)</td>
-<td>(call the method and try again with the result)</td>
+<td><em>(call the method and try again with the result)</em></td>
 </tr>
 <tr>
 <td>All others</td>
-<td>throw TypeError</td>
+<td><em>throw TypeError</em></td>
 </tr>
 </tbody>
 </table>
