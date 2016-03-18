@@ -38,7 +38,7 @@
 <h1>
 <a id="usage" class="anchor" href="#usage" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>USAGE</h1>
 
-<p>Install with (nothing yet, this is still a private fork.  Soon?).</p>
+<p>Install with (nothing yet, this is still a private fork.  Soon?) </p>
 
 <p>It works as... (version 0.1.x)</p>
 
@@ -106,7 +106,7 @@
 <div class="highlight highlight-source-vbnet"><pre>Debug<span class="pl-k">.</span>Print objRs<span class="pl-k">.</span>Fields<span class="pl-k">.</span>Item(<span class="pl-c1">0</span>)  <span class="pl-c">' Both statements print </span>
 Debug<span class="pl-k">.</span>Print objRs(<span class="pl-c1">0</span>)              <span class="pl-c">'  the Value of Item(0).</span></pre></div>
 
-<p>This is because in this context <strong><code>Fields</code></strong> is the default property of <strong><code>objRS</code></strong> and <strong><code>Item</code></strong> is the default property of <strong><code>Fields</code></strong>.  This library tries to support the shortcut syntax described here by attempting to detect when you are attempting to use an object as if it were a non-object.  <a href="http://www.2ality.com/2012/03/converting-to-string.html">If you try to do any arithmatic operations on a COM object or convert it to a string</a>, it will retrieve its "shortcut" property.  Our COM objects also have a special property <strong><code>\_</code></strong> that does this as well (which is the same as calling <strong><code>.valueOf()</code></strong>.</p>
+<p>This is because in this context <strong><code>Fields</code></strong> is the default property of <strong><code>objRS</code></strong> and <strong><code>Item</code></strong> is the default property of <strong><code>Fields</code></strong>.  This library tries to support the shortcut syntax described here by attempting to detect when you are attempting to use an object as if it were a non-object.  <a href="http://www.2ality.com/2012/03/converting-to-string.html">If you try to do any arithmatic operations on a COM object or convert it to a string</a>, it will retrieve its "shortcut" property.  Our COM objects also have a special property <strong><code>_</code></strong> that does this as well (which is the same as calling <strong><code>.valueOf()</code></strong>.</p>
 
 <p><strong>Indirect Arguments <em>(TODO)</em>:</strong> In addition to a list of parameters specified by-value, COM also supports by-reference, return-only, and named parameters.  We can simulate this using the indcall_, indget_, and indput_ special prefixes.  The parameters may include an array of specified parameters, and an object of named parameters.  If any of the parameters have changed the new values will be replaced in the array or object:</p>
 
@@ -225,20 +225,16 @@ Debug<span class="pl-k">.</span>Print objRs(<span class="pl-c1">0</span>)       
 </ul>
 
 <h1>
-<a id="features" class="anchor" href="#features" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>FEATURES</h1>
+<a id="todo" class="anchor" href="#todo" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>TODO</h1>
 
 <ul>
-<li>fix BUG: date</li>
-<li>BUG: A few samples in win32ole@0.1.0 needs '._' ideom.</li>
-<li>When you use unary operator '!' at the place that needs boolean CONDITION (for example 'while(!obj.status){...}') , you must write 'while(!obj.status._){...}' to complete v8::Object::ToBoolean() conversion. (NamedPropertyHandler will not be called because v8::Object::ToBoolean() is called directly for unary operator '!' instead of v8::Object::valueOf() in ParseUnaryExpression() v8/src/parser.cc .) Do you know how to fake it?</li>
-<li>V8Variant::OLEGetAttr returns a copy of object, so it uses much memory. I want to fix it.</li>
-<li>Now '._' ideom is obsoleted.</li>
-<li>Remove 'node-proxy' from dependencies list.</li>
-<li>Change default branch to dev0.1.0 .</li>
-<li>BUG: Some samples in between win32ole@0.0.25 and win32ole@0.0.28 ( examples/maze_creator.js examples/maze_solver.js ) uses huge memory and many disposers will run by v8 GC when maze size is 20*30. I think that each encapsulated V8Variant (by node-proxy) may be big object. So I will try to use v8 accessor handlers ( SetCallAsFunctionHandler / SetNamedPropertyHandler / SetIndexedPropertyHandler ) instead of ( '<strong>noSuchMethod</strong>' / '<strong>noSuchGetter</strong>' / '<strong>noSuchSetter</strong>' ) by node-proxy.</li>
-<li>So much implements. (can not handle some COM VARIANT types, array etc.)</li>
-<li>Bug fix. (throws exception when failed to Invoke(), and many test message.)</li>
-<li>Implement accessors getter, setter and caller. (version 0.1.x) (Some V8Variants were advanced to 0.1.x .)</li>
+<li>Need to define <strong><code>undefined</code></strong> as <strong><code>DISP_E_PARAMNOTFOUND</code></strong> (currently it's going in as <strong><code>VT_EMPTY</code></strong>)</li>
+<li>There may be more than one property defined on an object with the same name, depending on the specific parameters we are calling it with.  Right now we are only using the first one with the (case-insensitive) name we are looking for.</li>
+<li>Put-property doesn't look for default properties when setting a non-object on an object parameter, depends on the object itself forwarding the request.  Does this work?</li>
+<li>Indirect calls (indcall_ indget_ indput_) have not been implemented</li>
+<li>Asynchronous calls using Promise and worker threads <em>(I consider this critical to implement before this can be used in a production environment)</em>
+</li>
+<li>Drop the remaining functions that have nothing to do with calling into COM objects, and all stdout/stderr outputs when not using debugging tools.</li>
 </ul>
 
 <h1>
