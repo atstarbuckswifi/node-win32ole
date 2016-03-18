@@ -72,18 +72,20 @@
 <h1>
 <a id="intro" class="anchor" href="#intro" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Intro</h1>
 
-<p>Microsoft introduced <a href="https://en.wikipedia.org/wiki/Component_Object_Model">COM</a> in 1993 and pushed it as the primary means of having applications communicate with each other.  More recently Microsoft has been transitioning to use of .NET components which cannot be seen or used by COM applications, but they do still provide COM interfaces for most of their products (and make it easy for developers to make C# COM-visible).</p>
+<p>Microsoft introduced <a href="https://en.wikipedia.org/wiki/Component_Object_Model">COM</a> in 1993 and pushed it as the primary means of having applications communicate with each other.  While more recently Microsoft has been transitioning to use of .NET components which cannot be seen or used by COM applications, they are still providing COM interfaces for most of their products (and making it <a href="http://anturcynhyrfus.blogspot.com/2011/03/creating-com-visible-c-component.html">easy for developers to make C# COM-visible</a>).</p>
 
-<p>This library permits call to COM objects that support the <a href="https://en.wikipedia.org/wiki/IDispatch">IDispatch</a> interface.  This interface describes the object and gives us the means to call it from a scripting language.  IDispatch is tightly built around the Visual Basic and the VBScript languages and share many of the assumptions that those languages make, which can be very different from Javascript.</p>
+<p>This library permits call to COM objects that support the <a href="https://en.wikipedia.org/wiki/IDispatch">IDispatch</a> interface.  This allows us to interrogate the object's properties and gives us a means to call into it designed for scripting languages.  IDispatch is tightly built around the Visual Basic and the VBScript languages and share many of the assumptions that those languages make, which can be very different from Javascript.</p>
 
-<p>The IDispatch interface permits for objects that refuse to describe themselves.  In this case this library will still permit the objects to be used, but will fall back to less intelligent behavior.</p>
+<p>The IDispatch interface permits objects to refuse to tell us what properties they have.  In this case this library will still permit the objects to be used, but will fall back to less intelligent behavior.</p>
 
 <h1>
 <a id="members-and-types" class="anchor" href="#members-and-types" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Members and Types</h1>
 
 <p>Objects can contain methods and properties.  Methods are similar to function calls and do something, while properties are similar to variables and can be read (and sometimes assigned).  Both methods and properties can take parameters (although for properties they are called "indexes".</p>
 
-<p><strong>Translation:</strong> Most values that are returned from a COM object will be translated to an equivalent (or approximate) Javascript value.  Most COM datatypes are supported, if we cannot translate it we will place it within a <strong><code>V8Variant</code></strong> wrapper object so it can be passed as-is back to COM as a parameter in a method call or a property value in an assignment, for instance.</p>
+<p><strong>Arguments:</strong> The simplest way to call a method is to call it with a number of arguments i.e. <strong><code>thisObject.action(argA, argB, argC)</code></strong>.  In this instance the three arguments will be translated to their COM equivalents and passed by-value to the <code>action</code> method of <code>thisObject</code>.  <em>(TODO)</em> Visual Basic (and COM) <a href="https://msdn.microsoft.com/en-us/library/f25e2b6b.aspx">permit the use of "optional parameters"</a>, if <strong><code>argB</code></strong> was an optional paramter not specified then you could call it with <strong><code>thisObject.action(argA, undefined, argC)</code></strong></p>
+
+<p><strong>Translation:</strong> Most values that are returned from a COM object will be translated to an equivalent (or approximate) Javascript value.  Most COM datatypes are supported, if we cannot translate it we will place it within a <strong><code>V8Variant</code></strong> wrapper object so it can be passed as-is back to COM (i.e. as a parameter in a method call or a property value in an assignment).</p>
 
 <p>Passing Javascript values into COM requires translating the values.  The datatypes are translated as follows:</p>
 
@@ -119,15 +121,15 @@
 </tr>
 <tr>
 <td>Number</td>
-<td>VT_R8 (double)</td>
+<td>VT_R8 (Double)</td>
 </tr>
 <tr>
 <td>Date</td>
-<td>VT_DATE (date, note that all OLE dates are local time zone)</td>
+<td>VT_DATE (Date, note that all OLE dates are local time zone)</td>
 </tr>
 <tr>
 <td>string</td>
-<td>VT_BSTR (string)</td>
+<td>VT_BSTR (String)</td>
 </tr>
 <tr>
 <td>V8Variant (wrapper holding unknown datatypes)</td>
@@ -136,10 +138,6 @@
 <tr>
 <td>V8Dispatch (wrapper holding objects)</td>
 <td>VT_DISPATCH (Object supporting IDispatch)</td>
-</tr>
-<tr>
-<td>V8Dispatch.method (function reference)</td>
-<td><em>(call the method and try again with the result)</em></td>
 </tr>
 <tr>
 <td>All others</td>
